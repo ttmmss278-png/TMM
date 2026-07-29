@@ -46,9 +46,22 @@ async function scanFiles(path='uploads'){
  return await r.json();
 }
 
+async function showResult(module,box){
+ try{
+  let r=await fetch(BIOSEQ_API+'/result/'+encodeURIComponent(module));
+  let d=await r.json();
+  if(d.files && d.files.length){
+   let img=d.files.find(x=>x.endsWith('.png'));
+   if(img){
+    box.innerHTML += '<br><img style="max-width:100%;margin-top:15px" src="'+BIOSEQ_API+'/'+img+'">';
+   }
+  }
+ }catch(e){}
+}
+
 async function runAnalysis(module,path='uploads'){
  const box=document.querySelector('.result');
- if(box)box.innerHTML='⏳ 正在上传数据并运行分析...';
+ if(box)box.innerHTML='⏳ 正在运行分析...';
  try{
   let r=await fetch(BIOSEQ_API+'/run',{
    method:'POST',
@@ -58,9 +71,8 @@ async function runAnalysis(module,path='uploads'){
   let d=await r.json();
   if(box){
    box.innerHTML='✅ 分析完成<br>状态：'+(d.status||'完成');
-   if(d.output){
-    box.innerHTML += '<br><a href="'+d.output+'" target="_blank">查看结果</a>';
-   }
+   await showResult(module,box);
+   box.innerHTML += '<br><button onclick="downloadResult(\''+module+'\')">下载结果</button>';
   }
   return d;
  }catch(e){
