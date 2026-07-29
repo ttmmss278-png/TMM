@@ -14,7 +14,7 @@
 <h3>1. 上传FASTQ数据</h3>
 <p>请选择双端测序 FASTQ 文件</p>
 <input type="file" id="fastqFiles" multiple>
-<button onclick="uploadFiles(document.getElementById('fastqFiles').files)">上传数据</button>
+<button onclick="uploadWGSFiles()">上传数据</button>
 </div>
 
 <div class="panel">
@@ -33,9 +33,14 @@
 </div>
 
 <script>
+async function uploadWGSFiles(){
+ let files=document.getElementById('fastqFiles').files;
+ let d=await uploadFiles(files);
+ document.getElementById('result').innerHTML='文件上传完成，共 '+(d.files?d.files.length:0)+' 个文件';
+}
+
 async function runWGS(){
-let gene=document.getElementById('geneID').value;
-document.getElementById('result').innerHTML='正在提交WGS分析任务: '+gene;
+ await runAnalysis('wgs');
 }
 </script>
 </body>
