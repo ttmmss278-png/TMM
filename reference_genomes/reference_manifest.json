@@ -1,0 +1,11 @@
+{
+  "filename": "ToxoDB-68_TgondiiGT1_Genome.fasta",
+  "organism": "Toxoplasma gondii GT1",
+  "release": "ToxoDB-68",
+  "size_bytes": 65205230,
+  "sha256": "2d80433d0f2b5f605e79c11e263e15545bdb47e8dcbeb5f6b43c1843d1c27f40",
+  "sequence_records": 2063,
+  "total_bases": 63945332,
+  "first_sequence": "TGGT1_chrIa",
+  "storage": "local BioSeq Engine reference_genomes directory"
+}
