@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>BioSeq Analysis Platform</title>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",Arial;background:#f4f7fb;color:#1f2937}.layout{display:flex;min-height:100vh}.sidebar{width:260px;background:#0f172a;color:white;padding:25px}.sidebar h1{font-size:22px;line-height:1.4}.menu{margin-top:35px}.menu div{padding:14px;border-radius:10px;margin-bottom:10px;background:rgba(255,255,255,.08)}.main{flex:1;padding:35px}.header{background:white;border-radius:16px;padding:25px;margin-bottom:25px;box-shadow:0 5px 20px rgba(0,0,0,.06)}.header h2{margin:0;font-size:30px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}.card{background:white;border-radius:18px;padding:25px;box-shadow:0 8px 25px rgba(0,0,0,.08)}.card h3{font-size:22px}.tag{background:#dbeafe;color:#1d4ed8;padding:5px 12px;border-radius:20px;font-size:13px}.module{margin-top:25px;background:white;border-radius:16px;padding:25px}.item{padding:12px;border-bottom:1px solid #e5e7eb}.status{background:#f8fafc;padding:15px;border-radius:10px}.green{color:#16a34a}.footer{text-align:center;margin-top:30px;color:#64748b}
+*{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",Arial;background:#f4f7fb;color:#1f2937}.layout{display:flex;min-height:100vh}.sidebar{width:250px;background:#0f172a;color:white;padding:25px}.sidebar h1{font-size:22px}.menu a{display:block;color:white;text-decoration:none;padding:13px;margin:10px 0;background:#1e293b;border-radius:10px}.main{flex:1;padding:35px}.header,.card,.panel{background:white;border-radius:18px;padding:25px;box-shadow:0 8px 25px rgba(0,0,0,.08);margin-bottom:25px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}.card a{display:inline-block;margin-top:15px;padding:10px 18px;background:#2563eb;color:white;border-radius:8px;text-decoration:none}.tag{background:#dbeafe;padding:5px 12px;border-radius:20px;color:#1d4ed8}.panel li{margin:10px}
 </style>
 </head>
 <body>
@@ -13,37 +13,21 @@
 <div class="sidebar">
 <h1>BioSeq<br>Analysis Platform</h1>
 <div class="menu">
-<div>🏠 首页工作台</div>
-<div>🧬 全基因组测序</div>
-<div>🧬 RNA-seq分析</div>
-<div>📊 小提琴图绘制</div>
-<div>⚙ R脚本管理</div>
+<a href="index.html">🏠 首页工作台</a>
+<a href="WGS/index.html">🧬 全基因组测序</a>
+<a href="RNAseq/index.html">🧬 RNA-seq分析</a>
+<a href="Violin/index.html">📊 小提琴图绘制</a>
 </div>
 </div>
 <div class="main">
-<div class="header">
-<h2>生物测序数据自动分析工作平台</h2>
-<p>基于项目文件夹识别、R脚本调用和结果管理的科研分析工具。</p>
-</div>
+<div class="header"><h2>生物测序数据自动分析工作平台</h2><p>项目文件夹识别 → R脚本分析 → 结果预览 → 数据保存</p></div>
 <div class="cards">
-<div class="card"><span class="tag">WGS</span><h3>🧬 全基因组测序分析</h3><p>支持项目文件夹导入，自动识别基因组文件、注释文件，并预留R分析接口。</p><div class="status">需要文件：FASTA / FASTQ / BAM / VCF</div></div>
-<div class="card"><span class="tag">RNA-seq</span><h3>🧬 转录组测序分析</h3><p>包含差异表达、富集分析和表达可视化模块。</p><div class="status"><div>📈 火山图</div><div>🫧 气泡图</div><div>🔥 热图</div><div>后续可扩展</div></div></div>
-<div class="card"><span class="tag">Gene Expression</span><h3>📊 小提琴图绘制</h3><p>输入基因编号，自动从表达矩阵提取数据，并调用R脚本绘图。</p><div class="status">支持多个基因自动颜色扩展</div></div>
+<div class="card"><span class="tag">WGS</span><h3>🧬 全基因组测序分析</h3><p>支持基因组数据识别、质量控制、比对、变异检测和注释分析。</p><a href="WGS/index.html">进入模块</a></div>
+<div class="card"><span class="tag">RNA-seq</span><h3>🧬 转录组测序分析</h3><p>包含火山图、气泡图、热图等可扩展分析模块。</p><a href="RNAseq/index.html">进入模块</a></div>
+<div class="card"><span class="tag">Expression</span><h3>📊 小提琴图绘制</h3><p>输入基因编号，自动读取表达矩阵并调用R脚本绘图。</p><a href="Violin/index.html">进入模块</a></div>
 </div>
-<div class="module">
-<h3>📁 项目文件夹识别</h3>
-<p>上传项目文件夹后，系统自动扫描：</p>
-<div class="item">✔ DEG差异表达文件</div>
-<div class="item">✔ 基因表达矩阵</div>
-<div class="item">✔ GO/KEGG富集结果</div>
-<div class="item">✔ 注释文件</div>
-</div>
-<div class="module">
-<h3>📋 分析流程</h3>
-<p>选择模块 → 自动识别文件 → 用户确认 → 调用R脚本 → 结果预览 → 选择保存位置</p>
-</div>
-<div class="footer">Version 1.1 | R analysis interface reserved</div>
-</div>
-</div>
+<div class="panel"><h3>📁 智能文件识别</h3><ul><li>DEG差异表达文件</li><li>基因表达矩阵</li><li>GO/KEGG富集结果</li><li>参考基因组与注释文件</li></ul></div>
+<div class="panel"><h3>📋 分析流程</h3><p>选择项目文件夹 → 自动扫描文件 → 用户确认 → 调用R脚本 → 结果预览 → 保存结果</p></div>
+</div></div>
 </body>
 </html>
