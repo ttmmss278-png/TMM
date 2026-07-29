@@ -33,6 +33,23 @@ def run_pipe(left_command, right_command, log):
         raise RuntimeError(f"Pipeline failed: {left_code} | {right.returncode}")
 
 
+def ensure_reference_indexes(reference, log):
+    reference = str(reference)
+    bwa_index_markers = [reference + suffix for suffix in ['.bwt', '.0123']]
+    if not any(os.path.exists(marker) for marker in bwa_index_markers):
+        log.append('BWA index not found; building it once for the default reference genome.')
+        run_command(['bwa', 'index', reference], log)
+    else:
+        log.append('Reusing existing BWA reference index.')
+
+    fasta_index = reference + '.fai'
+    if not os.path.exists(fasta_index):
+        log.append('FASTA index not found; building samtools faidx index.')
+        run_command(['samtools', 'faidx', reference], log)
+    else:
+        log.append('Reusing existing samtools FASTA index.')
+
+
 def run_wgs(r1, r2, reference, output):
     inputs = {'R1': r1, 'R2': r2, 'reference': reference}
     missing_files = [name for name, path in inputs.items() if not path or not os.path.isfile(path)]
@@ -52,19 +69,17 @@ def run_wgs(r1, r2, reference, output):
     clean_r1 = output_dir / 'clean_R1.fastq.gz'
     clean_r2 = output_dir / 'clean_R2.fastq.gz'
     bam = output_dir / 'aligned.sorted.bam'
-    log = []
+    log = [f'Using reference genome: {reference}']
 
     try:
+        ensure_reference_indexes(reference, log)
+
         run_command([
             'fastp', '-i', r1, '-I', r2,
             '-o', str(clean_r1), '-O', str(clean_r2),
             '--html', str(output_dir / 'fastp_report.html'),
             '--json', str(output_dir / 'fastp_report.json')
         ], log)
-
-        bwa_index_markers = [reference + suffix for suffix in ['.bwt', '.0123']]
-        if not any(os.path.exists(marker) for marker in bwa_index_markers):
-            run_command(['bwa', 'index', reference], log)
 
         run_pipe(
             ['bwa', 'mem', reference, str(clean_r1), str(clean_r2)],
@@ -90,9 +105,10 @@ def run_wgs(r1, r2, reference, output):
             'status': 'success',
             'message': 'WGS pipeline completed.',
             'log': '\n'.join(log),
-            'output': str(output_dir)
+            'output': str(output_dir),
+            'reference': reference
         }
     except Exception as exc:
         log.append(str(exc))
         (output_dir / 'pipeline.log').write_text('\n'.join(log), encoding='utf-8')
-        return {'status': 'failed', 'log': '\n'.join(log), 'output': str(output_dir)}
+        return {'status': 'failed', 'log': '\n'.join(log), 'output': str(output_dir), 'reference': reference}
