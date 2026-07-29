@@ -2,14 +2,23 @@ const BIOSEQ_API='http://127.0.0.1:8765';
 
 let BIOSEQ_CURRENT_PATH='uploads';
 
-async function checkEngine(){
+function setEngineStatus(text, ok=false){
  const el=document.getElementById('engineStatus');
  if(!el)return;
+ el.innerHTML=text;
+ el.style.color=ok?'#059669':'#dc2626';
+}
+
+async function checkEngine(){
  try{
-  await fetch(BIOSEQ_API+'/status');
-  el.innerHTML='● BioSeq Engine Connected';
+  let r=await fetch(BIOSEQ_API+'/status');
+  if(r.ok){
+   setEngineStatus('● BioSeq Engine Connected',true);
+   return;
+  }
+  throw new Error();
  }catch(e){
-  el.innerHTML='○ BioSeq Engine Offline';
+  setEngineStatus('○ BioSeq Engine Offline，请启动 BioSeq_Start.bat');
  }
 }
 
@@ -39,7 +48,7 @@ async function scanFiles(path='uploads'){
 
 async function runAnalysis(module,path='uploads'){
  const box=document.querySelector('.result');
- if(box)box.innerHTML='分析运行中...';
+ if(box)box.innerHTML='⏳ 正在上传数据并运行分析...';
  try{
   let r=await fetch(BIOSEQ_API+'/run',{
    method:'POST',
@@ -48,14 +57,14 @@ async function runAnalysis(module,path='uploads'){
   });
   let d=await r.json();
   if(box){
-   box.innerHTML='状态：'+(d.status||'完成');
+   box.innerHTML='✅ 分析完成<br>状态：'+(d.status||'完成');
    if(d.output){
     box.innerHTML += '<br><a href="'+d.output+'" target="_blank">查看结果</a>';
    }
   }
   return d;
  }catch(e){
-  if(box)box.innerHTML='请启动本地BioSeq服务';
+  if(box)box.innerHTML='❌ 无法连接 BioSeq Engine，请启动本地服务';
  }
 }
 
