@@ -48,12 +48,7 @@ def run():
     os.makedirs(output, exist_ok=True)
 
     if module == 'wgs':
-        return jsonify(run_wgs(
-            data.get('r1'),
-            data.get('r2'),
-            data.get('reference'),
-            output
-        ))
+        return jsonify(run_wgs(data.get('r1'), data.get('r2'), data.get('reference'), output))
 
     scripts = {
         'volcano':'../R_scripts/RNAseq/volcano_web.R',
@@ -68,27 +63,25 @@ def run():
     return jsonify({'status':'error','message':'unknown module'})
 
 
-@app.route('/run_wgs', methods=['POST'])
-def run_wgs_api():
-    data = request.json or {}
-    return jsonify(run_wgs(
-        data.get('r1'),
-        data.get('r2'),
-        data.get('reference'),
-        data.get('output', os.path.join(RESULT_DIR,'WGS'))
-    ))
+@app.route('/result/<module>')
+def result(module):
+    folder = os.path.join(RESULT_DIR, module)
+    files = []
+    if os.path.exists(folder):
+        for root, _, names in os.walk(folder):
+            for name in names:
+                files.append(os.path.join(root, name).replace('\\','/'))
+    return jsonify({'status':'success','files':files})
 
 
 @app.route('/download/<module>')
 def download(module):
     folder = os.path.join(RESULT_DIR, module)
     zip_path = os.path.join(RESULT_DIR, module + '.zip')
-
     with zipfile.ZipFile(zip_path, 'w') as z:
         for root, _, files in os.walk(folder):
             for file in files:
                 z.write(os.path.join(root,file), file)
-
     return send_file(zip_path, as_attachment=True)
 
 
