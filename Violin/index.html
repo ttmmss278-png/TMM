@@ -2,44 +2,77 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>小提琴图绘制</title>
-<link rel="stylesheet" href="../assets/style.css">
-<script src="../assets/app.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>小提琴图绘制｜TMM BioSeq</title>
+<link rel="stylesheet" href="../assets/style.css?v=20260729-2">
 </head>
 <body>
-<div class="container">
-<h1>📊 小提琴图表达分析</h1>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">🧬</div><div><strong>TMM BioSeq</strong><span>Violin Module</span></div></div>
+    <nav class="side-nav">
+      <a href="../"><span class="nav-icon">⌂</span>首页工作台</a>
+      <a href="../WGS/"><span class="nav-icon">🧬</span>全基因组测序</a>
+      <a href="../RNAseq/"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
+      <a class="active" href="./"><span class="nav-icon">▥</span>小提琴图绘制</a>
+    </nav>
+    <div class="sidebar-footer"><p>支持一次输入多个基因编号，结果由本机 R 环境生成。</p><div data-engine-status><span class="engine-dot"></span>正在检测分析引擎…</div></div>
+  </aside>
 
-<div class="panel">
-<h3>1. 上传表达矩阵</h3>
-<input id="exprFile" type="file">
-<button onclick="uploadViolin()">上传数据</button>
+  <main class="main-content">
+    <div class="module-page">
+      <a class="back-link" href="../">← 返回首页工作台</a>
+      <div class="page-head">
+        <div class="page-title"><div class="module-icon">▥</div><div><h1>多基因表达小提琴图</h1><p>上传表达矩阵，输入目标基因编号，生成表达分布图、筛选数据和统计结果。</p></div></div>
+        <div class="status-pill" data-engine-status><span class="engine-dot"></span>正在检测分析引擎…</div>
+      </div>
+
+      <section class="panel">
+        <h3>1. 上传表达矩阵</h3>
+        <div class="form-grid">
+          <div class="field full"><label for="exprFile">表达量矩阵文件</label><input id="exprFile" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" data-file-input data-file-target="exprFileList"><small>建议第一列为 Gene ID，其余列为样本表达量；CSV、TSV 或制表符文本最稳定。</small></div>
+        </div>
+        <div id="exprFileList" class="file-summary"><div class="file-item"><strong>尚未选择表达矩阵</strong><span>1 个文件</span></div></div>
+      </section>
+
+      <section class="panel" style="margin-top:18px">
+        <h3>2. 设置绘图内容</h3>
+        <div class="form-grid">
+          <div class="field full"><label for="genes">目标基因 ID</label><textarea id="genes" placeholder="每行一个或使用逗号分隔，例如：&#10;TGGT1_240690&#10;TGGT1_289300"></textarea><small>系统会按输入顺序筛选基因，未找到的基因会写入运行日志。</small></div>
+          <div class="field"><label for="plotTitle">图标题（可选）</label><input id="plotTitle" placeholder="例如 SAMS-related gene expression"></div>
+          <div class="field"><label for="scaleMode">数据处理</label><select id="scaleMode"><option value="none">使用原始表达量</option><option value="log2">log2(x + 1)</option><option value="zscore">按基因 Z-score</option></select></div>
+        </div>
+        <div class="action-row">
+          <button class="btn" type="button" onclick="submitViolin()">上传并生成小提琴图</button>
+          <button class="btn secondary" type="button" onclick="checkEngine()">检测分析引擎</button>
+          <button class="btn danger" type="button" onclick="resetViolin()">清空</button>
+        </div>
+      </section>
+
+      <section class="result-panel">
+        <h3>3. 运行状态与结果</h3>
+        <div id="resultLog" class="result-box">等待提交小提琴图绘制任务。</div>
+        <div id="resultFiles" class="result-files"></div>
+      </section>
+    </div>
+  </main>
 </div>
-
-<div class="panel">
-<h3>2. 输入基因ID</h3>
-<input id="geneID" placeholder="例如 TGGT1_xxxxxx">
-</div>
-
-<button onclick="runViolin()">生成小提琴图</button>
-
-<div class="result" id="result">等待分析</div>
-</div>
-
+<script src="../assets/app.js?v=20260729-2"></script>
 <script>
-let violinPath='';
-async function uploadViolin(){
-let f=document.getElementById('exprFile').files[0];
-if(!f){alert('请选择表达矩阵');return;}
-let form=new FormData();
-form.append('files',f);
-let r=await fetch('http://127.0.0.1:8765/upload',{method:'POST',body:form});
-let d=await r.json();
-violinPath=d.files[0]||'';
-document.getElementById('result').innerHTML='数据上传完成';
+async function submitViolin(){
+  const file=document.getElementById('exprFile').files[0];
+  const genes=document.getElementById('genes').value.trim();
+  if(!file){ setResult('resultLog','请选择表达矩阵文件。','error'); return; }
+  if(!genes){ setResult('resultLog','请输入至少一个目标基因 ID。','error'); return; }
+  try{
+    const saved=await uploadNamedFiles([{key:'expression',file}],'resultLog');
+    await runAnalysis('violin',{path:saved[0],genes,title:document.getElementById('plotTitle').value.trim(),scale:document.getElementById('scaleMode').value},'resultLog','resultFiles');
+  }catch(error){}
 }
-function runViolin(){
-runAnalysis('violin',violinPath);
+function resetViolin(){
+  document.getElementById('exprFile').value=''; document.getElementById('genes').value=''; document.getElementById('plotTitle').value=''; document.getElementById('scaleMode').value='none';
+  renderSelectedFiles([], 'exprFileList'); clearModuleResult();
 }
 </script>
 </body>
