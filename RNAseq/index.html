@@ -2,46 +2,96 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>RNA-seq分析</title>
-<link rel="stylesheet" href="../assets/style.css">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>RNA-seq 分析工作台｜TMM BioSeq</title>
+<link rel="stylesheet" href="../assets/style.css?v=20260729-2">
 </head>
 <body>
-<div class="container">
-<h1>🧬 转录组测序分析工作台</h1>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">🧬</div><div><strong>TMM BioSeq</strong><span>RNA-seq Module</span></div></div>
+    <nav class="side-nav">
+      <a href="../"><span class="nav-icon">⌂</span>首页工作台</a>
+      <a href="../WGS/"><span class="nav-icon">🧬</span>全基因组测序</a>
+      <a class="active" href="./"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
+      <a href="../Violin/"><span class="nav-icon">▥</span>小提琴图绘制</a>
+    </nav>
+    <div class="sidebar-footer"><p>选择项目文件夹后，文件仅上传到本机分析引擎。</p><div data-engine-status><span class="engine-dot"></span>正在检测分析引擎…</div></div>
+  </aside>
 
-<div class="panel">
-<h3>1. 上传RNA-seq项目文件</h3>
-<input id="rnaFiles" type="file" webkitdirectory multiple>
-<button onclick="uploadRNA()">上传并识别文件</button>
-</div>
+  <main class="main-content">
+    <div class="module-page">
+      <a class="back-link" href="../">← 返回首页工作台</a>
+      <div class="page-head">
+        <div class="page-title"><div class="module-icon">⌁</div><div><h1>RNA-seq 分析工作台</h1><p>自动识别差异表达、表达矩阵和 GO/KEGG 富集文件，并调用 R 脚本生成图件。</p></div></div>
+        <div class="status-pill" data-engine-status><span class="engine-dot"></span>正在检测分析引擎…</div>
+      </div>
 
-<div class="panel">
-<h3>2. 文件识别结果</h3>
-<div id="scanResult">等待扫描...</div>
-</div>
+      <section class="panel">
+        <h3>1. 上传并识别项目文件</h3>
+        <p>可选择整个项目文件夹，也可以直接选择多个 CSV、TSV、TXT 或 Excel 导出文件。</p>
+        <div class="form-grid">
+          <div class="field full"><label for="rnaFiles">RNA-seq 项目文件夹</label><input id="rnaFiles" type="file" webkitdirectory multiple data-file-input data-file-target="rnaFileList"><small>浏览器将保留本次选择列表，不会上传到 GitHub 仓库。</small></div>
+        </div>
+        <div id="rnaFileList" class="file-summary"><div class="file-item"><strong>尚未选择文件夹</strong><span>0 个文件</span></div></div>
+        <div class="action-row">
+          <button class="btn" type="button" onclick="uploadAndScanRna()">上传并识别文件</button>
+          <button class="btn secondary" type="button" onclick="checkEngine()">检测分析引擎</button>
+        </div>
+      </section>
 
-<div class="panel">
-<h3>3. 分析模块</h3>
-<button onclick="runRNA('volcano')">📈 火山图</button>
-<button onclick="runRNA('bubble')">🫧 气泡图</button>
-<button onclick="runRNA('heatmap')">🔥 热图</button>
-</div>
+      <section class="panel" style="margin-top:18px">
+        <h3>2. 文件识别结果</h3>
+        <div id="scanSummary" class="workflow">
+          <div class="workflow-step"><strong>D</strong><b>差异表达文件</b><span>等待扫描</span></div>
+          <div class="workflow-step"><strong>E</strong><b>表达矩阵</b><span>等待扫描</span></div>
+          <div class="workflow-step"><strong>G</strong><b>GO/KEGG 文件</b><span>等待扫描</span></div>
+          <div class="workflow-step"><strong>R</strong><b>任务状态</b><span>尚未上传</span></div>
+        </div>
+      </section>
 
-<div class="result">等待运行结果</div>
+      <section class="panel" style="margin-top:18px">
+        <h3>3. 选择分析模块</h3>
+        <p>完成文件识别后，选择需要生成的图件。不同模块会分别建立结果目录。</p>
+        <div class="module-grid">
+          <button class="module-card" type="button" onclick="runRna('volcano')"><div class="module-icon">📈</div><h3>火山图</h3><p>根据差异表达结果绘制 log2FC 与显著性分布。</p><div class="module-enter"><span>运行火山图分析</span><b>→</b></div></button>
+          <button class="module-card" type="button" onclick="runRna('bubble')"><div class="module-icon">◉</div><h3>富集气泡图</h3><p>读取 GO/KEGG 富集结果，展示通路比例和显著性。</p><div class="module-enter"><span>运行气泡图分析</span><b>→</b></div></button>
+          <button class="module-card" type="button" onclick="runRna('heatmap')"><div class="module-icon">▦</div><h3>表达热图</h3><p>读取表达矩阵，生成基因与样本表达模式热图。</p><div class="module-enter"><span>运行热图分析</span><b>→</b></div></button>
+        </div>
+      </section>
+
+      <section class="result-panel">
+        <h3>4. 运行状态与结果</h3>
+        <div id="resultLog" class="result-box">请先上传并识别 RNA-seq 项目文件。</div>
+        <div id="resultFiles" class="result-files"></div>
+      </section>
+    </div>
+  </main>
 </div>
-<script src="../assets/app.js"></script>
+<script src="../assets/app.js?v=20260729-2"></script>
 <script>
-let rnaPath='';
-async function uploadRNA(){
- let files=document.getElementById('rnaFiles').files;
- let form=new FormData();
- for(let f of files){form.append('files',f)}
- let r=await fetch('http://127.0.0.1:8765/upload',{method:'POST',body:form});
- let d=await r.json();
- rnaPath=d.files[0]||'';
- document.getElementById('scanResult').innerHTML='文件上传完成：'+d.files.length+' 个文件';
+let rnaUploaded=false;
+async function uploadAndScanRna(){
+  const files=Array.from(document.getElementById('rnaFiles').files||[]);
+  if(!files.length){ setResult('resultLog','请先选择 RNA-seq 项目文件夹。','error'); return; }
+  try{
+    await uploadFiles(files,'resultLog');
+    const scan=await scanFiles('uploads','resultLog');
+    rnaUploaded=true;
+    const shortName=value=>value?String(value).split(/[\\/]/).pop():'未识别';
+    document.getElementById('scanSummary').innerHTML=`
+      <div class="workflow-step"><strong>D</strong><b>差异表达文件</b><span>${escapeHtml(shortName(scan.deg_file))}</span></div>
+      <div class="workflow-step"><strong>E</strong><b>表达矩阵</b><span>${escapeHtml(shortName(scan.expression_file))}</span></div>
+      <div class="workflow-step"><strong>G</strong><b>GO/KEGG 文件</b><span>${escapeHtml(shortName(scan.kegg_file))}</span></div>
+      <div class="workflow-step"><strong>✓</strong><b>任务状态</b><span>文件识别完成</span></div>`;
+    setResult('resultLog','文件上传与自动识别已完成，可以选择下方分析模块。','success');
+  }catch(error){}
 }
-function runRNA(m){runAnalysis(m,rnaPath)}
+async function runRna(module){
+  if(!rnaUploaded){ setResult('resultLog','请先执行“上传并识别文件”。','error'); return; }
+  await runAnalysis(module,{path:'uploads'},'resultLog','resultFiles').catch(()=>{});
+}
 </script>
 </body>
 </html>
