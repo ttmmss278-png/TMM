@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request, send_file, send_from_directory
 from flask_cors import CORS
 from pathlib import Path
 from werkzeug.utils import secure_filename
+import hashlib
+import json
 import zipfile
 
 from file_scanner import scan_project
@@ -13,11 +15,18 @@ PROJECT_DIR = BASE_DIR.parent
 UPLOAD_DIR = PROJECT_DIR / "uploads"
 RESULT_DIR = PROJECT_DIR / "BioSeq_results"
 R_SCRIPT_DIR = PROJECT_DIR / "R_scripts" / "RNAseq"
+REFERENCE_DIR = PROJECT_DIR / "reference_genomes"
+DEFAULT_REFERENCE = REFERENCE_DIR / "ToxoDB-68_TgondiiGT1_Genome.fasta"
+REFERENCE_METADATA = REFERENCE_DIR / "reference_metadata.json"
+EXPECTED_REFERENCE_SHA256 = "2d80433d0f2b5f605e79c11e263e15545bdb47e8dcbeb5f6b43c1843d1c27f40"
+EXPECTED_REFERENCE_SIZE = 65205230
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
+REFERENCE_DIR.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024
 CORS(app)
 
 
@@ -42,9 +51,99 @@ def unique_upload_path(filename):
     return candidate
 
 
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def default_reference_status():
+    installed = DEFAULT_REFERENCE.is_file()
+    metadata = {}
+    if REFERENCE_METADATA.is_file():
+        try:
+            metadata = json.loads(REFERENCE_METADATA.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError):
+            metadata = {}
+    return {
+        'installed': installed,
+        'filename': DEFAULT_REFERENCE.name,
+        'path': str(DEFAULT_REFERENCE) if installed else '',
+        'size_bytes': DEFAULT_REFERENCE.stat().st_size if installed else 0,
+        'sha256': metadata.get('sha256', ''),
+        'expected_sha256': EXPECTED_REFERENCE_SHA256,
+        'expected_size_bytes': EXPECTED_REFERENCE_SIZE,
+        'organism': 'Toxoplasma gondii GT1',
+        'release': 'ToxoDB-68'
+    }
+
+
+def clear_reference_indexes(reference):
+    reference = Path(reference)
+    suffixes = ['.amb', '.ann', '.bwt', '.pac', '.sa', '.0123', '.fai', '.gzi', '.dict']
+    for suffix in suffixes:
+        candidate = Path(str(reference) + suffix)
+        if candidate.exists():
+            candidate.unlink()
+
+
 @app.get('/status')
 def status():
-    return jsonify({'service': 'running', 'version': '1.1.0'})
+    return jsonify({
+        'service': 'running',
+        'version': '1.2.0',
+        'default_reference': default_reference_status()
+    })
+
+
+@app.get('/reference/status')
+def reference_status():
+    return jsonify({'status': 'success', **default_reference_status()})
+
+
+@app.post('/reference/install')
+def install_reference():
+    uploaded = request.files.get('reference')
+    if not uploaded or not uploaded.filename:
+        return jsonify({'status': 'error', 'message': 'No reference genome received'}), 400
+
+    suffix = Path(uploaded.filename).suffix.lower()
+    if suffix not in {'.fa', '.fasta', '.fna'}:
+        return jsonify({'status': 'error', 'message': 'Reference genome must be FASTA/FA/FNA format'}), 400
+
+    temp_path = REFERENCE_DIR / f".{DEFAULT_REFERENCE.name}.uploading"
+    if temp_path.exists():
+        temp_path.unlink()
+    uploaded.save(temp_path)
+
+    actual_size = temp_path.stat().st_size
+    actual_sha256 = sha256_file(temp_path)
+    if actual_size != EXPECTED_REFERENCE_SIZE or actual_sha256 != EXPECTED_REFERENCE_SHA256:
+        temp_path.unlink(missing_ok=True)
+        return jsonify({
+            'status': 'error',
+            'message': 'The selected file does not match the verified ToxoDB-68 Tgondii GT1 reference genome.',
+            'actual_size_bytes': actual_size,
+            'actual_sha256': actual_sha256,
+            'expected_size_bytes': EXPECTED_REFERENCE_SIZE,
+            'expected_sha256': EXPECTED_REFERENCE_SHA256
+        }), 400
+
+    clear_reference_indexes(DEFAULT_REFERENCE)
+    temp_path.replace(DEFAULT_REFERENCE)
+    metadata = {
+        'filename': DEFAULT_REFERENCE.name,
+        'sha256': actual_sha256,
+        'size_bytes': actual_size,
+        'sequence_records': 2063,
+        'total_bases': 63945332,
+        'organism': 'Toxoplasma gondii GT1',
+        'release': 'ToxoDB-68'
+    }
+    REFERENCE_METADATA.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding='utf-8')
+    return jsonify({'status': 'success', 'message': 'Default reference genome installed.', **default_reference_status()})
 
 
 @app.post('/upload')
@@ -79,10 +178,18 @@ def run():
     output.mkdir(parents=True, exist_ok=True)
 
     if module == 'wgs':
+        reference_value = data.get('reference')
+        reference_path = resolve_input(reference_value) if reference_value else DEFAULT_REFERENCE
+        if not reference_path.is_file():
+            return jsonify({
+                'status': 'failed',
+                'message': 'Default reference genome is not installed. Select ToxoDB-68_TgondiiGT1_Genome.fasta once in the WGS page.',
+                'reference_required': True
+            }), 400
         return jsonify(run_wgs(
             str(resolve_input(data.get('r1'))),
             str(resolve_input(data.get('r2'))),
-            str(resolve_input(data.get('reference'))),
+            str(reference_path),
             str(output)
         ))
 
