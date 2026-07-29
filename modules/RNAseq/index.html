@@ -1,12 +1,53 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><title>RNA-seq Analysis</title><link rel="stylesheet" href="../../assets/style.css"></head>
+<head>
+<meta charset="UTF-8">
+<title>RNA-seq Analysis</title>
+<link rel="stylesheet" href="../../assets/style.css">
+</head>
 <body>
 <div class="main">
-<div class="header"><h2>🧬 RNA-seq 分析中心</h2><p>文件识别 → R分析 → 结果输出</p></div>
-<div class="panel"><h3>上传项目文件夹</h3><input type="file" webkitdirectory multiple></div>
-<div class="panel"><h3>分析模块</h3><button>火山图</button><button>气泡图</button><button>热图</button></div>
+<div class="header">
+<h2>🧬 RNA-seq 分析中心</h2>
+<p>文件上传 → 数据识别 → R分析 → 结果输出</p>
+</div>
+
+<div class="panel">
+<h3>上传 RNA-seq 项目文件</h3>
+<input id="rnaFiles" type="file" webkitdirectory multiple>
+<br><br>
+<button onclick="uploadRNA()">上传并识别文件</button>
+</div>
+
+<div class="panel">
+<h3>分析模块</h3>
+<button onclick="runRNA('volcano')">📈 火山图</button>
+<button onclick="runRNA('bubble')">🫧 气泡图</button>
+<button onclick="runRNA('heatmap')">🔥 热图</button>
+</div>
+
+<div class="panel">
+<h3>运行状态</h3>
+<div id="scanResult">等待上传</div>
+</div>
+
 <div class="result">等待运行</div>
 </div>
+
+<script src="../../assets/app.js"></script>
+<script>
+async function uploadRNA(){
+ const files=document.getElementById('rnaFiles').files;
+ const result=document.getElementById('scanResult');
+ result.innerHTML='⏳ 正在上传...';
+ try{
+  let data=await uploadFiles(files);
+  let scan=await scanFiles('uploads');
+  result.innerHTML='✅ 文件识别完成<br>'+JSON.stringify(scan);
+ }catch(e){
+  result.innerHTML='❌ 上传失败';
+ }
+}
+</script>
 </body>
 </html>
