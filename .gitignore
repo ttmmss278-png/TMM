@@ -1,0 +1,26 @@
+# Local analysis inputs and outputs
+uploads/
+BioSeq_results/
+
+# Locally installed reference genomes and generated indexes
+reference_genomes/*.fa
+reference_genomes/*.fasta
+reference_genomes/*.fna
+reference_genomes/*.gz
+reference_genomes/*.amb
+reference_genomes/*.ann
+reference_genomes/*.bwt
+reference_genomes/*.pac
+reference_genomes/*.sa
+reference_genomes/*.0123
+reference_genomes/*.fai
+reference_genomes/*.gzi
+reference_genomes/*.dict
+
+# Keep reference metadata and documentation tracked
+!reference_genomes/reference_manifest.json
+!reference_genomes/README.md
+
+# Python caches
+__pycache__/
+*.pyc
