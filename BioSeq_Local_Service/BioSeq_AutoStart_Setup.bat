@@ -27,6 +27,8 @@ $InstallRoot = Join-Path $env:LOCALAPPDATA 'TMMBioSeq'
 $AppDir = Join-Path $InstallRoot 'app'
 $InstalledBat = Join-Path $InstallRoot 'BioSeq_AutoStart_Setup.bat'
 $LauncherVbs = Join-Path $InstallRoot 'BioSeq_Protocol_Launcher.vbs'
+$ConfigKey = 'HKCU:\Software\TMMBioSeq'
+$DefaultStarter = Join-Path $AppDir 'BioSeq_Local_Service\BioSeq_Start.bat'
 $RepoZipUrl = 'https://github.com/ttmmss278-png/TMM/archive/refs/heads/main.zip'
 $StatusUrl = 'http://127.0.0.1:8765/status'
 
@@ -46,8 +48,62 @@ function Test-BioSeqEngine {
     }
 }
 
-function Install-OrUpdateApp {
-    Write-Step '[1/4] 正在下载最新版 TMM BioSeq Engine...'
+function Get-ConfiguredStarter {
+    $candidates = New-Object System.Collections.Generic.List[string]
+
+    if (Test-Path -LiteralPath $ConfigKey) {
+        try {
+            $saved = (Get-ItemProperty -Path $ConfigKey -Name 'EngineStartPath' -ErrorAction Stop).EngineStartPath
+            if ($saved) { $candidates.Add([string]$saved) }
+        }
+        catch {}
+    }
+
+    $candidates.Add($DefaultStarter)
+
+    $selfDir = Split-Path -Parent ([System.IO.Path]::GetFullPath($env:BIOSEQ_SELF))
+    $candidates.Add((Join-Path $selfDir 'BioSeq_Start.bat'))
+    $candidates.Add((Join-Path $selfDir 'BioSeq_Local_Service\BioSeq_Start.bat'))
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
+    }
+
+    return $null
+}
+
+function Find-ExistingStarter {
+    $starter = Get-ConfiguredStarter
+    if ($starter) { return $starter }
+
+    if ($IsProtocol) { return $null }
+
+    Write-Step '正在常用目录中查找已有 BioSeq Engine...'
+
+    $roots = @(
+        (Join-Path $env:USERPROFILE 'Desktop'),
+        (Join-Path $env:USERPROFILE 'Downloads'),
+        (Join-Path $env:USERPROFILE 'Documents')
+    ) | Where-Object { Test-Path -LiteralPath $_ -PathType Container }
+
+    foreach ($root in $roots) {
+        try {
+            $found = Get-ChildItem -LiteralPath $root -Filter 'BioSeq_Start.bat' -File -Recurse -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+            if ($found) {
+                return $found.FullName
+            }
+        }
+        catch {}
+    }
+
+    return $null
+}
+
+function Download-App {
+    Write-Step '未发现可用的本地 BioSeq Engine，正在下载最新版...'
 
     New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $AppDir -Force | Out-Null
@@ -69,21 +125,21 @@ function Install-OrUpdateApp {
             throw '下载包中未找到 TMM 项目目录。'
         }
 
-        # 不使用镜像删除模式，因此本机已有参考基因组、索引和结果不会被删除。
         Copy-Item -Path (Join-Path $source.FullName '*') -Destination $AppDir -Recurse -Force
     }
     finally {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    $starter = Join-Path $AppDir 'BioSeq_Local_Service\BioSeq_Start.bat'
-    if (-not (Test-Path -LiteralPath $starter)) {
-        throw "安装后未找到启动文件：$starter"
+    if (-not (Test-Path -LiteralPath $DefaultStarter -PathType Leaf)) {
+        throw "下载后未找到启动文件：$DefaultStarter"
     }
+
+    return $DefaultStarter
 }
 
-function Install-Launcher {
-    Write-Step '[2/4] 正在安装本地启动器...'
+function Install-Launcher([string]$Starter) {
+    Write-Step '正在安装网页启动关联...'
 
     New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
 
@@ -102,16 +158,15 @@ shell.Run Chr(34) & "$escapedBat" & Chr(34) & " " & Chr(34) & arg & Chr(34), 0, 
 "@
     Set-Content -LiteralPath $LauncherVbs -Value $vbsContent -Encoding Unicode
 
-    $configKey = 'HKCU:\Software\TMMBioSeq'
-    New-Item -Path $configKey -Force | Out-Null
-    Set-ItemProperty -Path $configKey -Name 'InstallRoot' -Value $InstallRoot
-    Set-ItemProperty -Path $configKey -Name 'AppDir' -Value $AppDir
-    Set-ItemProperty -Path $configKey -Name 'LauncherBat' -Value $InstalledBat
+    New-Item -Path $ConfigKey -Force | Out-Null
+    Set-ItemProperty -Path $ConfigKey -Name 'InstallRoot' -Value $InstallRoot
+    Set-ItemProperty -Path $ConfigKey -Name 'LauncherBat' -Value $InstalledBat
+    if ($Starter) {
+        Set-ItemProperty -Path $ConfigKey -Name 'EngineStartPath' -Value ([System.IO.Path]::GetFullPath($Starter))
+    }
 }
 
 function Register-Protocol {
-    Write-Step '[3/4] 正在关联网页“启动分析引擎”按钮...'
-
     $protocolRoot = 'HKCU:\Software\Classes\bioseq'
     New-Item -Path $protocolRoot -Force | Out-Null
     Set-Item -Path $protocolRoot -Value 'URL:TMM BioSeq Engine Launcher'
@@ -127,25 +182,24 @@ function Register-Protocol {
     Set-Item -Path $commandKey -Value $command
 }
 
-function Start-BioSeqEngine {
+function Start-BioSeqEngine([string]$Starter) {
     if (Test-BioSeqEngine) {
         if (-not $IsProtocol) {
-            Write-Host 'BioSeq Engine 已经在运行。' -ForegroundColor Green
+            Write-Host '检测到 BioSeq Engine 已经在运行，已跳过下载和重复启动。' -ForegroundColor Green
         }
         return $true
     }
 
-    $starter = Join-Path $AppDir 'BioSeq_Local_Service\BioSeq_Start.bat'
-    if (-not (Test-Path -LiteralPath $starter)) {
+    if (-not $Starter -or -not (Test-Path -LiteralPath $Starter -PathType Leaf)) {
         return $false
     }
 
-    Write-Step '[4/4] 正在启动 BioSeq Engine...'
+    Write-Step '正在启动现有 BioSeq Engine...'
 
     $windowStyle = if ($IsProtocol) { 'Minimized' } else { 'Normal' }
     Start-Process -FilePath $env:ComSpec `
-        -ArgumentList @('/k', ('call "' + $starter + '"')) `
-        -WorkingDirectory (Split-Path -Parent $starter) `
+        -ArgumentList @('/k', ('call "' + $Starter + '"')) `
+        -WorkingDirectory (Split-Path -Parent $Starter) `
         -WindowStyle $windowStyle | Out-Null
 
     for ($i = 0; $i -lt 40; $i++) {
@@ -159,44 +213,60 @@ function Start-BioSeqEngine {
     }
 
     if (-not $IsProtocol) {
-        Write-Host '引擎尚未连接。请查看刚打开的 BioSeq Engine 窗口中的提示。' -ForegroundColor Yellow
+        Write-Host '引擎尚未连接，请检查刚打开的 BioSeq Engine 窗口。' -ForegroundColor Yellow
     }
     return $false
 }
 
 try {
     if ($IsProtocol) {
-        if (-not (Test-Path -LiteralPath (Join-Path $AppDir 'BioSeq_Local_Service\BioSeq_Start.bat'))) {
-            Install-OrUpdateApp
-            Install-Launcher
-            Register-Protocol
+        if (Test-BioSeqEngine) { exit 0 }
+
+        $starter = Get-ConfiguredStarter
+        if (-not $starter) {
+            $starter = Download-App
         }
-        $ok = Start-BioSeqEngine
+
+        Install-Launcher -Starter $starter
+        Register-Protocol
+        $ok = Start-BioSeqEngine -Starter $starter
         if ($ok) { exit 0 } else { exit 2 }
     }
 
     Write-Host '=====================================================' -ForegroundColor DarkCyan
-    Write-Host '  TMM BioSeq Engine 独立安装与网页启动关联工具' -ForegroundColor White
+    Write-Host '  TMM BioSeq Engine 智能安装与网页启动关联工具' -ForegroundColor White
     Write-Host '=====================================================' -ForegroundColor DarkCyan
     Write-Host ''
-    Write-Host '该文件可以放在桌面或下载目录，不需要预先存在 TMM 文件夹。'
-    Write-Host '程序将安装到：' -NoNewline
-    Write-Host $InstallRoot -ForegroundColor Yellow
+    Write-Host '程序会优先复用电脑上已有的 BioSeq Engine。'
+    Write-Host '只有检测不到运行中的服务，也找不到本地启动文件时，才会下载。'
     Write-Host ''
 
-    Install-OrUpdateApp
-    Install-Launcher
+    if (Test-BioSeqEngine) {
+        Install-Launcher -Starter (Get-ConfiguredStarter)
+        Register-Protocol
+        Write-Host '已检测到正在运行的 BioSeq Engine，未下载任何程序。' -ForegroundColor Green
+        Write-Host '网页启动关联已完成。'
+        exit 0
+    }
+
+    $starter = Find-ExistingStarter
+    if ($starter) {
+        Write-Host ('已找到现有 BioSeq Engine：' + $starter) -ForegroundColor Green
+        Write-Host '将直接复用，不进行下载。'
+    }
+    else {
+        $starter = Download-App
+    }
+
+    Install-Launcher -Starter $starter
     Register-Protocol
-    $ok = Start-BioSeqEngine
+    $ok = Start-BioSeqEngine -Starter $starter
 
     Write-Host ''
-    Write-Host '安装完成。' -ForegroundColor Green
-    Write-Host '以后在网页中点击“启动”，即可自动启动本机 BioSeq Engine。'
+    Write-Host '配置完成。' -ForegroundColor Green
+    Write-Host '以后网页显示“分析引擎未启动”时，点击“启动”即可。'
     Write-Host '浏览器首次调用时，请选择“允许打开 TMM BioSeq Engine Launcher”。'
-    Write-Host ''
-    Write-Host '安装后的程序位置：' -NoNewline
-    Write-Host $InstallRoot -ForegroundColor Yellow
-    Write-Host '当前下载的 BAT 文件现在可以删除。'
+    Write-Host '当前下载的安装 BAT 配置完成后可以删除。'
 
     if ($ok) { exit 0 } else { exit 2 }
 }
@@ -204,7 +274,7 @@ catch {
     if (-not $IsProtocol) {
         Write-Host ''
         Write-Host ('安装或启动失败：' + $_.Exception.Message) -ForegroundColor Red
-        Write-Host '请检查网络连接、PowerShell 和 Python 环境。'
+        Write-Host '请检查网络连接、PowerShell、Python 和启动文件路径。'
     }
     exit 1
 }
