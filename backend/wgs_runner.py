@@ -59,7 +59,7 @@ def wsl_prefix():
     executable = get_wsl_executable()
     if not executable:
         return []
-    return [executable, '-d', get_wsl_distro(), '--']
+    return [executable, '-d', get_wsl_distro(), '-u', 'root', '--']
 
 
 def wsl_tools_available(tools):
