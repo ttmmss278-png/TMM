@@ -1,97 +1,181 @@
-const BIOSEQ_API='http://127.0.0.1:8765';
+const BIOSEQ_API = localStorage.getItem('bioseq_api') || 'http://127.0.0.1:8765';
+let BIOSEQ_CURRENT_PATH = 'uploads';
+let BIOSEQ_ENGINE_ONLINE = false;
 
-let BIOSEQ_CURRENT_PATH='uploads';
+function byId(id){ return document.getElementById(id); }
+
+function escapeHtml(value=''){
+  return String(value).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+}
+
+function formatBytes(bytes){
+  if(!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units=['B','KB','MB','GB'];
+  const i=Math.min(Math.floor(Math.log(bytes)/Math.log(1024)), units.length-1);
+  return `${(bytes/Math.pow(1024,i)).toFixed(i===0?0:1)} ${units[i]}`;
+}
 
 function setEngineStatus(text, ok=false){
- const el=document.getElementById('engineStatus');
- if(!el)return;
- el.innerHTML=text;
- el.style.color=ok?'#059669':'#dc2626';
+  BIOSEQ_ENGINE_ONLINE = ok;
+  document.querySelectorAll('[data-engine-status]').forEach(el => {
+    el.innerHTML = `<span class="engine-dot ${ok?'online':''}"></span>${escapeHtml(text)}`;
+  });
+  const legacy=byId('engineStatus');
+  if(legacy){
+    legacy.textContent=text;
+    legacy.style.color=ok?'#059669':'#dc2626';
+  }
 }
 
 async function checkEngine(){
- try{
-  let r=await fetch(BIOSEQ_API+'/status');
-  if(r.ok){
-   setEngineStatus('● BioSeq Engine Connected',true);
-   return;
+  setEngineStatus('正在检测本地分析引擎…', false);
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),2500);
+  try{
+    const response=await fetch(`${BIOSEQ_API}/status`,{signal:controller.signal,cache:'no-store'});
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data=await response.json();
+    setEngineStatus(`分析引擎已连接 · v${data.version||'1.0'}`,true);
+    return true;
+  }catch(error){
+    setEngineStatus('分析引擎未启动',false);
+    return false;
+  }finally{
+    clearTimeout(timer);
   }
-  throw new Error();
- }catch(e){
-  setEngineStatus('○ BioSeq Engine Offline，请启动 BioSeq_Start.bat');
- }
 }
 
-checkEngine();
-
-async function uploadFiles(files){
- const form=new FormData();
- for(const f of files){
-  form.append('files',f);
- }
- const r=await fetch(BIOSEQ_API+'/upload',{method:'POST',body:form});
- const data=await r.json();
- if(data.files && data.files.length){
-  BIOSEQ_CURRENT_PATH='uploads';
- }
- return data;
-}
-
-async function scanFiles(path='uploads'){
- const r=await fetch(BIOSEQ_API+'/scan',{
-  method:'POST',
-  headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({path:path})
- });
- return await r.json();
-}
-
-async function showResult(module,box){
- try{
-  let r=await fetch(BIOSEQ_API+'/result/'+encodeURIComponent(module));
-  let d=await r.json();
-  if(d.files && d.files.length){
-   let img=d.files.find(x=>x.endsWith('.png'));
-   if(img){
-    box.innerHTML += '<br><img style="max-width:100%;margin-top:15px" src="'+BIOSEQ_API+'/'+img+'">';
-   }
+function renderSelectedFiles(inputOrFiles,targetId){
+  const files=inputOrFiles?.files ? Array.from(inputOrFiles.files) : Array.from(inputOrFiles||[]);
+  const target=byId(targetId);
+  if(!target) return files;
+  if(!files.length){
+    target.innerHTML='<div class="file-item"><strong>尚未选择文件</strong><span>—</span></div>';
+    return files;
   }
- }catch(e){}
+  target.innerHTML=files.map(file=>`<div class="file-item"><strong title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</strong><span>${formatBytes(file.size)}</span></div>`).join('');
+  return files;
 }
 
-async function runAnalysis(module,path='uploads'){
- const box=document.querySelector('.result');
- if(box)box.innerHTML='⏳ 正在运行分析...';
- try{
-  let r=await fetch(BIOSEQ_API+'/run',{
-   method:'POST',
-   headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({module:module,path:path})
-  });
-  let d=await r.json();
-  if(box){
-   box.innerHTML='✅ 分析完成<br>状态：'+(d.status||'完成');
-   await showResult(module,box);
-   box.innerHTML += '<br><button onclick="downloadResult(\''+module+'\')">下载结果</button>';
+function setResult(boxId,message,type='info'){
+  const box=byId(boxId)||document.querySelector('.result-box')||document.querySelector('.result');
+  if(!box) return;
+  box.classList?.add('result-box');
+  const prefix=type==='error'?'错误：':type==='success'?'完成：':'';
+  box.textContent=prefix+message;
+}
+
+async function parseResponse(response){
+  let data={};
+  try{ data=await response.json(); }
+  catch(error){ data={status:'error',message:await response.text()}; }
+  if(!response.ok) throw new Error(data.message||`请求失败（HTTP ${response.status}）`);
+  return data;
+}
+
+async function uploadNamedFiles(entries,boxId='resultLog'){
+  const valid=(entries||[]).filter(item=>item&&item.file);
+  if(!valid.length) throw new Error('请先选择需要上传的文件。');
+  setResult(boxId,`正在上传 ${valid.length} 个文件…`);
+  const form=new FormData();
+  valid.forEach((item,index)=>form.append(item.key||`file_${index}`,item.file,item.file.name));
+  try{
+    const response=await fetch(`${BIOSEQ_API}/upload`,{method:'POST',body:form});
+    const data=await parseResponse(response);
+    BIOSEQ_CURRENT_PATH='uploads';
+    setResult(boxId,`已上传 ${data.files?.length||0} 个文件。`,'success');
+    return data.files||[];
+  }catch(error){
+    setResult(boxId,`${error.message}\n请先运行 BioSeq_Local_Service/BioSeq_Start.bat。`,'error');
+    throw error;
   }
-  return d;
- }catch(e){
-  if(box)box.innerHTML='❌ 无法连接 BioSeq Engine，请启动本地服务';
- }
 }
 
-async function runRNA(module){
- return runAnalysis(module,BIOSEQ_CURRENT_PATH);
+async function uploadFiles(files,boxId='resultLog'){
+  return uploadNamedFiles(Array.from(files||[]).map((file,index)=>({key:`file_${index}`,file})),boxId);
 }
 
-async function runViolin(){
- return runAnalysis('violin',BIOSEQ_CURRENT_PATH);
+async function scanFiles(path='uploads',boxId='resultLog'){
+  setResult(boxId,'正在识别项目文件…');
+  try{
+    const response=await fetch(`${BIOSEQ_API}/scan`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({path})
+    });
+    const data=await parseResponse(response);
+    return data.files||{};
+  }catch(error){
+    setResult(boxId,error.message,'error');
+    throw error;
+  }
 }
 
-async function runWGS(){
- return runAnalysis('wgs',BIOSEQ_CURRENT_PATH);
+function resultFileUrl(path){
+  return `${BIOSEQ_API}/file/${String(path).split('/').map(encodeURIComponent).join('/')}`;
+}
+
+function renderResultFiles(files,targetId,module){
+  const target=byId(targetId);
+  if(!target) return;
+  if(!files?.length){
+    target.innerHTML='<div class="notice info">任务已返回，但当前结果目录中还没有可预览文件。</div>';
+    return;
+  }
+  const image=files.find(file=>/\.(png|jpe?g|webp)$/i.test(file));
+  target.innerHTML=files.map(file=>{
+    const name=String(file).split('/').pop();
+    return `<div class="result-file"><span>${escapeHtml(name)}</span><a href="${resultFileUrl(file)}" target="_blank" rel="noopener">打开</a></div>`;
+  }).join('')+(image?`<img class="preview-image" src="${resultFileUrl(image)}" alt="分析结果预览">`:'')+
+    `<div class="action-row"><button class="btn secondary small" type="button" onclick="downloadResult('${escapeHtml(module)}')">下载全部结果</button></div>`;
+}
+
+async function refreshResults(module,targetId='resultFiles'){
+  try{
+    const response=await fetch(`${BIOSEQ_API}/result/${encodeURIComponent(module)}`,{cache:'no-store'});
+    const data=await parseResponse(response);
+    renderResultFiles(data.files||[],targetId,module);
+    return data.files||[];
+  }catch(error){
+    const target=byId(targetId);
+    if(target) target.innerHTML=`<div class="notice">暂时无法读取结果：${escapeHtml(error.message)}</div>`;
+    return [];
+  }
+}
+
+async function runAnalysis(module,payload={},boxId='resultLog',filesTargetId='resultFiles'){
+  setResult(boxId,`正在运行 ${module} 分析，请保持本地服务窗口开启…`);
+  try{
+    const response=await fetch(`${BIOSEQ_API}/run`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({module,path:payload.path||BIOSEQ_CURRENT_PATH,...payload})
+    });
+    const data=await parseResponse(response);
+    const status=data.status||'unknown';
+    const details=data.log||data.message||JSON.stringify(data,null,2);
+    setResult(boxId,`状态：${status}\n${details}`,status==='success'?'success':status==='failed'||status==='error'?'error':'info');
+    await refreshResults(module,filesTargetId);
+    return data;
+  }catch(error){
+    setResult(boxId,`${error.message}\n请确认 BioSeq Engine 已启动，并检查 R、fastp、BWA、samtools 等分析环境。`,'error');
+    throw error;
+  }
 }
 
 function downloadResult(module){
- window.open(BIOSEQ_API+'/download/'+encodeURIComponent(module));
+  window.open(`${BIOSEQ_API}/download/${encodeURIComponent(module)}`,'_blank','noopener');
 }
+
+function clearModuleResult(logId='resultLog',filesId='resultFiles'){
+  const log=byId(logId); if(log) log.textContent='等待提交分析任务。';
+  const files=byId(filesId); if(files) files.innerHTML='';
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  checkEngine();
+  document.querySelectorAll('[data-file-input]').forEach(input=>{
+    const target=input.dataset.fileTarget;
+    input.addEventListener('change',()=>renderSelectedFiles(input,target));
+  });
+});
