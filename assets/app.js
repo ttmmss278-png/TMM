@@ -47,7 +47,12 @@ async function runAnalysis(module,path='uploads'){
    body:JSON.stringify({module:module,path:path})
   });
   let d=await r.json();
-  if(box)box.innerHTML='状态：'+d.status;
+  if(box){
+   box.innerHTML='状态：'+(d.status||'完成');
+   if(d.output){
+    box.innerHTML += '<br><a href="'+d.output+'" target="_blank">查看结果</a>';
+   }
+  }
   return d;
  }catch(e){
   if(box)box.innerHTML='请启动本地BioSeq服务';
@@ -66,6 +71,6 @@ async function runWGS(){
  return runAnalysis('wgs',BIOSEQ_CURRENT_PATH);
 }
 
-async function downloadResult(file){
- window.open(BIOSEQ_API+'/download?file='+encodeURIComponent(file));
+function downloadResult(module){
+ window.open(BIOSEQ_API+'/download/'+encodeURIComponent(module));
 }
