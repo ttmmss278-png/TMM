@@ -1,6 +1,8 @@
 const BIOSEQ_API = localStorage.getItem('bioseq_api') || 'http://127.0.0.1:8765';
+const BIOSEQ_START_PROTOCOL = 'bioseq://start';
 let BIOSEQ_CURRENT_PATH = 'uploads';
 let BIOSEQ_ENGINE_ONLINE = false;
+let BIOSEQ_ENGINE_STARTING = false;
 
 function byId(id){ return document.getElementById(id); }
 
@@ -15,10 +17,12 @@ function formatBytes(bytes){
   return `${(bytes/Math.pow(1024,i)).toFixed(i===0?0:1)} ${units[i]}`;
 }
 
-function setEngineStatus(text, ok=false){
+function setEngineStatus(text, ok=false, options={}){
   BIOSEQ_ENGINE_ONLINE = ok;
+  BIOSEQ_ENGINE_STARTING = Boolean(options.starting);
+  const canStart=!ok&&!BIOSEQ_ENGINE_STARTING;
   document.querySelectorAll('[data-engine-status]').forEach(el => {
-    el.innerHTML = `<span class="engine-dot ${ok?'online':''}"></span>${escapeHtml(text)}`;
+    el.innerHTML = `<span class="engine-dot ${ok?'online':BIOSEQ_ENGINE_STARTING?'starting':''}"></span><span class="engine-status-text">${escapeHtml(text)}</span>${canStart?'<button class="engine-start-btn" type="button" onclick="startBioSeqEngine(event)">启动</button>':''}`;
   });
   const legacy=byId('engineStatus');
   if(legacy){
@@ -27,22 +31,67 @@ function setEngineStatus(text, ok=false){
   }
 }
 
-async function checkEngine(){
-  setEngineStatus('正在检测本地分析引擎…', false);
+async function probeEngine(timeoutMs=2500){
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),2500);
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
   try{
     const response=await fetch(`${BIOSEQ_API}/status`,{signal:controller.signal,cache:'no-store'});
-    if(!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data=await response.json();
-    setEngineStatus(`分析引擎已连接 · v${data.version||'1.0'}`,true);
-    return true;
+    if(!response.ok) return null;
+    return await response.json();
   }catch(error){
-    setEngineStatus('分析引擎未启动',false);
-    return false;
+    return null;
   }finally{
     clearTimeout(timer);
   }
+}
+
+async function checkEngine(){
+  setEngineStatus('正在检测本地分析引擎…',false,{starting:true});
+  const data=await probeEngine();
+  if(data){
+    setEngineStatus(`分析引擎已连接 · v${data.version||'1.0'}`,true);
+    return true;
+  }
+  setEngineStatus('分析引擎未启动',false);
+  return false;
+}
+
+function invokeBioSeqProtocol(){
+  const link=document.createElement('a');
+  link.href=BIOSEQ_START_PROTOCOL;
+  link.style.display='none';
+  link.setAttribute('aria-hidden','true');
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(()=>link.remove(),1500);
+}
+
+async function waitForEngine(maxAttempts=30,intervalMs=1000){
+  for(let attempt=1;attempt<=maxAttempts;attempt+=1){
+    const data=await probeEngine(1200);
+    if(data){
+      setEngineStatus(`分析引擎已连接 · v${data.version||'1.0'}`,true);
+      return true;
+    }
+    setEngineStatus(`正在启动分析引擎… ${attempt}/${maxAttempts}`,false,{starting:true});
+    await new Promise(resolve=>setTimeout(resolve,intervalMs));
+  }
+  return false;
+}
+
+async function startBioSeqEngine(event){
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if(BIOSEQ_ENGINE_ONLINE) return true;
+  if(BIOSEQ_ENGINE_STARTING) return false;
+
+  setEngineStatus('正在调用本地启动器…',false,{starting:true});
+  invokeBioSeqProtocol();
+  const started=await waitForEngine();
+  if(!started){
+    setEngineStatus('未检测到引擎，请先运行启动器 BAT',false);
+  }
+  return started;
 }
 
 function renderSelectedFiles(inputOrFiles,targetId){
