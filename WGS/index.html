@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>WGS 全基因组测序分析｜TMM BioSeq</title>
-<link rel="stylesheet" href="../assets/style.css?v=20260729-4">
+<link rel="stylesheet" href="../assets/style.css?v=20260729-5">
 </head>
 <body>
 <div class="app-shell">
@@ -41,6 +41,10 @@
           </div>
         </div>
         <div id="referenceStatus" class="notice info" style="margin-top:16px">正在检查默认参考基因组…</div>
+        <div class="action-row">
+          <button class="btn secondary" type="button" onclick="installSelectedReferenceOnly()">仅安装/更新默认参考基因组</button>
+          <button class="btn secondary" type="button" onclick="refreshReferenceStatus()">刷新参考基因组状态</button>
+        </div>
         <div id="wgsFiles" class="file-summary"><div class="file-item"><strong>尚未选择 R1 和 R2</strong><span>2 项必需</span></div></div>
       </section>
 
@@ -50,11 +54,10 @@
           <div class="field"><label for="geneID">目标基因 ID（可选）</label><input id="geneID" placeholder="例如 TGGT1_240690"><small>用于记录目标区域；是否参与下游注释取决于本地脚本配置。</small></div>
           <div class="field"><label for="sampleName">样本名称</label><input id="sampleName" placeholder="例如 Dicre-01"><small>建议使用不含空格的英文、数字和短横线。</small></div>
         </div>
-        <div class="notice" style="margin-top:16px">FASTQ 和参考基因组只上传到当前电脑上的 BioSeq Engine，不会上传到 GitHub。首次建立 BWA 索引可能耗时较长，后续会直接复用。</div>
+        <div class="notice" style="margin-top:16px">FASTQ 和参考基因组只上传到当前电脑上的 BioSeq Engine，不会上传到 GitHub。首次建立 BWA 和 FASTA 索引可能耗时较长，后续会直接复用。</div>
         <div class="action-row">
           <button class="btn" type="button" onclick="submitWgs()">上传并开始分析</button>
           <button class="btn secondary" type="button" onclick="checkEngine().then(refreshReferenceStatus)">检测分析引擎</button>
-          <button class="btn secondary" type="button" onclick="refreshReferenceStatus()">刷新参考基因组状态</button>
           <button class="btn danger" type="button" onclick="resetWgs()">清空本次输入</button>
         </div>
       </section>
@@ -67,23 +70,25 @@
     </div>
   </main>
 </div>
-<script src="../assets/app.js?v=20260729-4"></script>
+<script src="../assets/app.js?v=20260729-5"></script>
 <script>
 const wgsInputs=['r1File','r2File','referenceFile'];
 let defaultReferenceInstalled=false;
 wgsInputs.forEach(id=>document.getElementById(id).addEventListener('change',renderWgsSelection));
 
 function renderWgsSelection(){
-  const r1=document.getElementById('r1File').files[0];
-  const r2=document.getElementById('r2File').files[0];
-  const reference=document.getElementById('referenceFile').files[0];
-  const files=[r1,r2,reference].filter(Boolean);
+  const entries=[
+    {label:'R1',file:document.getElementById('r1File').files[0],required:true},
+    {label:'R2',file:document.getElementById('r2File').files[0],required:true},
+    {label:'参考基因组',file:document.getElementById('referenceFile').files[0],required:false}
+  ];
+  const selected=entries.filter(item=>item.file);
   const box=document.getElementById('wgsFiles');
-  if(!files.length){
+  if(!selected.length){
     box.innerHTML='<div class="file-item"><strong>尚未选择 R1 和 R2</strong><span>2 项必需</span></div>';
     return;
   }
-  box.innerHTML=files.map((file,index)=>`<div class="file-item"><strong>${escapeHtml(file.name)}</strong><span>${index===2?'待安装 · ':''}${formatBytes(file.size)}</span></div>`).join('');
+  box.innerHTML=selected.map(item=>`<div class="file-item"><strong>${escapeHtml(item.label)}：${escapeHtml(item.file.name)}</strong><span>${item.required?'本次输入':'待安装'} · ${formatBytes(item.file.size)}</span></div>`).join('');
 }
 
 async function refreshReferenceStatus(){
@@ -97,7 +102,7 @@ async function refreshReferenceStatus(){
       box.textContent=`默认参考基因组已安装：${data.filename}（${formatBytes(data.size_bytes)}，${data.release}，${data.organism}）`;
     }else{
       box.className='notice';
-      box.textContent='默认参考基因组尚未安装。首次分析时请选择 ToxoDB-68_TgondiiGT1_Genome.fasta；校验通过后将自动保存并复用。';
+      box.textContent='默认参考基因组尚未安装。请选择 ToxoDB-68_TgondiiGT1_Genome.fasta，然后点击“仅安装/更新默认参考基因组”。';
     }
     return defaultReferenceInstalled;
   }catch(error){
@@ -117,6 +122,18 @@ async function installDefaultReference(file){
   setResult('resultLog',`默认参考基因组安装完成：${data.filename}`,'success');
   await refreshReferenceStatus();
   return data;
+}
+
+async function installSelectedReferenceOnly(){
+  const reference=document.getElementById('referenceFile').files[0];
+  if(!reference){ setResult('resultLog','请先选择 ToxoDB-68_TgondiiGT1_Genome.fasta。','error'); return; }
+  const online=await checkEngine();
+  if(!online){ setResult('resultLog','请先启动 BioSeq Engine。','error'); return; }
+  try{
+    await installDefaultReference(reference);
+  }catch(error){
+    setResult('resultLog',error.message,'error');
+  }
 }
 
 async function submitWgs(){
