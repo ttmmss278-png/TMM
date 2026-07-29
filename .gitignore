@@ -16,8 +16,9 @@ reference_genomes/*.0123
 reference_genomes/*.fai
 reference_genomes/*.gzi
 reference_genomes/*.dict
+reference_genomes/reference_metadata.json
 
-# Keep reference metadata and documentation tracked
+# Keep verified reference metadata and documentation tracked
 !reference_genomes/reference_manifest.json
 !reference_genomes/README.md
 
