@@ -1,2 +1,46 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><title>小提琴图绘制</title><style>body{font-family:Microsoft YaHei;background:#f5f7fb;padding:40px}.box{background:white;padding:25px;border-radius:15px}</style></head><body><h1>📊 小提琴图绘制</h1><div class="box"><h3>输入文件</h3><p>上传或选择表达量矩阵Excel文件。</p><p>支持输入一个或多个基因编号，系统调用R脚本自动绘制。</p><h3>输出</h3><p>生成图片、统计结果及分析脚本。</p></div></body></html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>小提琴图绘制</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<div class="container">
+<h1>📊 小提琴图表达分析</h1>
+
+<div class="panel">
+<h3>1. 上传表达矩阵</h3>
+<input id="exprFile" type="file">
+<button onclick="uploadViolin()">上传数据</button>
+</div>
+
+<div class="panel">
+<h3>2. 输入基因ID</h3>
+<input id="geneID" placeholder="例如 TGGT1_xxxxxx">
+</div>
+
+<button onclick="runViolin()">生成小提琴图</button>
+
+<div class="result" id="result">等待分析</div>
+</div>
+
+<script>
+let violinPath='';
+async function uploadViolin(){
+let f=document.getElementById('exprFile').files[0];
+if(!f){alert('请选择表达矩阵');return;}
+let form=new FormData();
+form.append('files',f);
+let r=await fetch('http://127.0.0.1:8765/upload',{method:'POST',body:form});
+let d=await r.json();
+violinPath=d.files[0]||'';
+document.getElementById('result').innerHTML='数据上传完成';
+}
+function runViolin(){
+runAnalysis('violin',violinPath);
+}
+</script>
+</body>
+</html>
