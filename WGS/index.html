@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>WGS分析</title>
-<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
 </head>
 <body>
 <div class="container">
@@ -11,8 +12,9 @@
 
 <div class="panel">
 <h3>1. 上传FASTQ数据</h3>
-<input type="file" id="fastqR1"><br><br>
-<input type="file" id="fastqR2">
+<p>请选择双端测序 FASTQ 文件</p>
+<input type="file" id="fastqFiles" multiple>
+<button onclick="uploadFiles(document.getElementById('fastqFiles').files)">上传数据</button>
 </div>
 
 <div class="panel">
@@ -30,15 +32,10 @@
 <div class="result" id="result">等待分析</div>
 </div>
 
-<script src="../../assets/app.js"></script>
 <script>
 async function runWGS(){
-let r1=document.getElementById('fastqR1').files[0];
-let r2=document.getElementById('fastqR2').files[0];
 let gene=document.getElementById('geneID').value;
-if(!r1||!r2){alert('请选择FASTQ文件');return;}
-
-document.getElementById('result').innerHTML='文件已选择，等待本地BioSeq Engine处理';
+document.getElementById('result').innerHTML='正在提交WGS分析任务: '+gene;
 }
 </script>
 </body>
