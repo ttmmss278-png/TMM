@@ -4,25 +4,45 @@ chcp 65001 >nul
 
 set "BIOSEQ_SELF=%~f0"
 set "BIOSEQ_PROTOCOL_ARG=%~1"
+set "BIOSEQ_TMPPS=%TEMP%\TMMBioSeq_%RANDOM%_%RANDOM%.ps1"
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "$raw=Get-Content -LiteralPath $env:BIOSEQ_SELF -Raw;" ^
- "$parts=$raw -split ':__POWERSHELL_PAYLOAD__',2;" ^
- "if($parts.Count -lt 2){throw 'Installer payload not found.'};" ^
- "Invoke-Expression $parts[1]"
+ "$lines=Get-Content -LiteralPath $env:BIOSEQ_SELF;" ^
+ "$marker=':__BIOSEQ_POWERSHELL__';" ^
+ "$index=-1;" ^
+ "for($i=0;$i -lt $lines.Count;$i++){if($lines[$i] -eq $marker){$index=$i;break}};" ^
+ "if($index -lt 0){Write-Error 'PowerShell payload marker not found.';exit 3};" ^
+ "$lines[($index+1)..($lines.Count-1)] | Set-Content -LiteralPath $env:BIOSEQ_TMPPS -Encoding UTF8"
 
+if errorlevel 1 (
+    echo.
+    echo [错误] 无法提取安装程序脚本。
+    echo 请重新下载最新版 BioSeq_AutoStart_Setup_Smart.bat。
+    echo.
+    pause
+    exit /b 3
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%BIOSEQ_TMPPS%" -ProtocolArg "%BIOSEQ_PROTOCOL_ARG%" -SelfPath "%BIOSEQ_SELF%"
 set "BIOSEQ_EXIT=%ERRORLEVEL%"
+
+del /q "%BIOSEQ_TMPPS%" >nul 2>&1
+
 if defined BIOSEQ_PROTOCOL_ARG exit /b %BIOSEQ_EXIT%
 
 echo.
 pause
 exit /b %BIOSEQ_EXIT%
 
-:__POWERSHELL_PAYLOAD__
+:__BIOSEQ_POWERSHELL__
+param(
+    [string]$ProtocolArg = '',
+    [string]$SelfPath = ''
+)
 
 $ErrorActionPreference = 'Stop'
 
-$IsProtocol = $env:BIOSEQ_PROTOCOL_ARG -like 'bioseq://start*'
+$IsProtocol = $ProtocolArg -like 'bioseq://start*'
 $InstallRoot = Join-Path $env:LOCALAPPDATA 'TMMBioSeq'
 $AppDir = Join-Path $InstallRoot 'app'
 $InstalledBat = Join-Path $InstallRoot 'BioSeq_AutoStart_Setup.bat'
@@ -54,49 +74,39 @@ function Get-ConfiguredStarter {
     if (Test-Path -LiteralPath $ConfigKey) {
         try {
             $saved = (Get-ItemProperty -Path $ConfigKey -Name 'EngineStartPath' -ErrorAction Stop).EngineStartPath
-            if ($saved) { $candidates.Add([string]$saved) }
+            if ($saved) {
+                $candidates.Add([string]$saved)
+            }
         }
         catch {}
     }
 
     $candidates.Add($DefaultStarter)
 
-    $selfDir = Split-Path -Parent ([System.IO.Path]::GetFullPath($env:BIOSEQ_SELF))
-    $candidates.Add((Join-Path $selfDir 'BioSeq_Start.bat'))
-    $candidates.Add((Join-Path $selfDir 'BioSeq_Local_Service\BioSeq_Start.bat'))
+    if ($SelfPath) {
+        $selfDir = Split-Path -Parent ([System.IO.Path]::GetFullPath($SelfPath))
+        $candidates.Add((Join-Path $selfDir 'BioSeq_Start.bat'))
+        $candidates.Add((Join-Path $selfDir 'BioSeq_Local_Service\BioSeq_Start.bat'))
+        $candidates.Add((Join-Path $selfDir 'TMM\BioSeq_Local_Service\BioSeq_Start.bat'))
+        $candidates.Add((Join-Path $selfDir 'TMM-main\BioSeq_Local_Service\BioSeq_Start.bat'))
+    }
+
+    $commonRoots = @(
+        (Join-Path $env:USERPROFILE 'Desktop'),
+        (Join-Path $env:USERPROFILE 'Downloads'),
+        (Join-Path $env:USERPROFILE 'Documents')
+    )
+
+    foreach ($root in $commonRoots) {
+        $candidates.Add((Join-Path $root 'TMM\BioSeq_Local_Service\BioSeq_Start.bat'))
+        $candidates.Add((Join-Path $root 'TMM-main\BioSeq_Local_Service\BioSeq_Start.bat'))
+        $candidates.Add((Join-Path $root 'BioSeq_Local_Service\BioSeq_Start.bat'))
+    }
 
     foreach ($candidate in $candidates) {
         if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
             return [System.IO.Path]::GetFullPath($candidate)
         }
-    }
-
-    return $null
-}
-
-function Find-ExistingStarter {
-    $starter = Get-ConfiguredStarter
-    if ($starter) { return $starter }
-
-    if ($IsProtocol) { return $null }
-
-    Write-Step '正在常用目录中查找已有 BioSeq Engine...'
-
-    $roots = @(
-        (Join-Path $env:USERPROFILE 'Desktop'),
-        (Join-Path $env:USERPROFILE 'Downloads'),
-        (Join-Path $env:USERPROFILE 'Documents')
-    ) | Where-Object { Test-Path -LiteralPath $_ -PathType Container }
-
-    foreach ($root in $roots) {
-        try {
-            $found = Get-ChildItem -LiteralPath $root -Filter 'BioSeq_Start.bat' -File -Recurse -ErrorAction SilentlyContinue |
-                Select-Object -First 1
-            if ($found) {
-                return $found.FullName
-            }
-        }
-        catch {}
     }
 
     return $null
@@ -143,20 +153,20 @@ function Install-Launcher([string]$Starter) {
 
     New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
 
-    $current = [System.IO.Path]::GetFullPath($env:BIOSEQ_SELF)
+    $current = [System.IO.Path]::GetFullPath($SelfPath)
     $target = [System.IO.Path]::GetFullPath($InstalledBat)
     if ($current -ne $target) {
         Copy-Item -LiteralPath $current -Destination $InstalledBat -Force
     }
 
     $escapedBat = $InstalledBat.Replace('"', '""')
-    $vbsContent = @"
-Set shell = CreateObject("WScript.Shell")
-arg = ""
-If WScript.Arguments.Count > 0 Then arg = WScript.Arguments(0)
-shell.Run Chr(34) & "$escapedBat" & Chr(34) & " " & Chr(34) & arg & Chr(34), 0, False
-"@
-    Set-Content -LiteralPath $LauncherVbs -Value $vbsContent -Encoding Unicode
+    $vbsLines = @(
+        'Set shell = CreateObject("WScript.Shell")',
+        'arg = ""',
+        'If WScript.Arguments.Count > 0 Then arg = WScript.Arguments(0)',
+        ('shell.Run Chr(34) & "{0}" & Chr(34) & " " & Chr(34) & arg & Chr(34), 0, False' -f $escapedBat)
+    )
+    Set-Content -LiteralPath $LauncherVbs -Value $vbsLines -Encoding Unicode
 
     New-Item -Path $ConfigKey -Force | Out-Null
     Set-ItemProperty -Path $ConfigKey -Name 'InstallRoot' -Value $InstallRoot
@@ -220,7 +230,9 @@ function Start-BioSeqEngine([string]$Starter) {
 
 try {
     if ($IsProtocol) {
-        if (Test-BioSeqEngine) { exit 0 }
+        if (Test-BioSeqEngine) {
+            exit 0
+        }
 
         $starter = Get-ConfiguredStarter
         if (-not $starter) {
@@ -238,18 +250,19 @@ try {
     Write-Host '=====================================================' -ForegroundColor DarkCyan
     Write-Host ''
     Write-Host '程序会优先复用电脑上已有的 BioSeq Engine。'
-    Write-Host '只有检测不到运行中的服务，也找不到本地启动文件时，才会下载。'
+    Write-Host '只有未运行且找不到本地启动文件时，才会从 GitHub 下载。'
     Write-Host ''
 
     if (Test-BioSeqEngine) {
-        Install-Launcher -Starter (Get-ConfiguredStarter)
+        $starter = Get-ConfiguredStarter
+        Install-Launcher -Starter $starter
         Register-Protocol
         Write-Host '已检测到正在运行的 BioSeq Engine，未下载任何程序。' -ForegroundColor Green
         Write-Host '网页启动关联已完成。'
         exit 0
     }
 
-    $starter = Find-ExistingStarter
+    $starter = Get-ConfiguredStarter
     if ($starter) {
         Write-Host ('已找到现有 BioSeq Engine：' + $starter) -ForegroundColor Green
         Write-Host '将直接复用，不进行下载。'
