@@ -3,31 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>BioSeq Analysis Platform</title>
-<style>
-*{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",Arial;background:#f4f7fb;color:#1f2937}.layout{display:flex;min-height:100vh}.sidebar{width:250px;background:#0f172a;color:white;padding:25px}.sidebar h1{font-size:22px}.menu a{display:block;color:white;text-decoration:none;padding:13px;margin:10px 0;background:#1e293b;border-radius:10px}.main{flex:1;padding:35px}.header,.card,.panel{background:white;border-radius:18px;padding:25px;box-shadow:0 8px 25px rgba(0,0,0,.08);margin-bottom:25px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}.card a{display:inline-block;margin-top:15px;padding:10px 18px;background:#2563eb;color:white;border-radius:8px;text-decoration:none}.tag{background:#dbeafe;padding:5px 12px;border-radius:20px;color:#1d4ed8}.panel li{margin:10px}
-</style>
+<title>TMM BioSeq Analysis Platform</title>
+<link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 <div class="layout">
 <div class="sidebar">
-<h1>BioSeq<br>Analysis Platform</h1>
-<div class="menu">
-<a href="index.html">🏠 首页工作台</a>
-<a href="WGS/index.html">🧬 全基因组测序</a>
-<a href="RNAseq/index.html">🧬 RNA-seq分析</a>
-<a href="Violin/index.html">📊 小提琴图绘制</a>
-</div>
+<h1>TMM<br>BioSeq</h1>
+<a href="index.html">首页工作台</a>
+<a href="WGS/index.html">全基因组测序</a>
+<a href="RNAseq/index.html">RNA-seq分析</a>
+<a href="Violin/index.html">小提琴图绘制</a>
 </div>
 <div class="main">
-<div class="header"><h2>生物测序数据自动分析工作平台</h2><p>项目文件夹识别 → R脚本分析 → 结果预览 → 数据保存</p></div>
-<div class="cards">
-<div class="card"><span class="tag">WGS</span><h3>🧬 全基因组测序分析</h3><p>支持基因组数据识别、质量控制、比对、变异检测和注释分析。</p><a href="WGS/index.html">进入模块</a></div>
-<div class="card"><span class="tag">RNA-seq</span><h3>🧬 转录组测序分析</h3><p>包含火山图、气泡图、热图等可扩展分析模块。</p><a href="RNAseq/index.html">进入模块</a></div>
-<div class="card"><span class="tag">Expression</span><h3>📊 小提琴图绘制</h3><p>输入基因编号，自动读取表达矩阵并调用R脚本绘图。</p><a href="Violin/index.html">进入模块</a></div>
+<div class="header">
+<h2>生物测序数据自动分析工作平台</h2>
+<p>文件识别 → 分析脚本 → 结果输出</p>
+<div id="engineStatus">检测分析引擎...</div>
 </div>
-<div class="panel"><h3>📁 智能文件识别</h3><ul><li>DEG差异表达文件</li><li>基因表达矩阵</li><li>GO/KEGG富集结果</li><li>参考基因组与注释文件</li></ul></div>
-<div class="panel"><h3>📋 分析流程</h3><p>选择项目文件夹 → 自动扫描文件 → 用户确认 → 调用R脚本 → 结果预览 → 保存结果</p></div>
-</div></div>
+<div class="cards">
+<div class="card"><h3>🧬 WGS</h3><p>基因敲除验证、FASTQ比对、BAM与IGV支持。</p><a href="WGS/index.html">进入模块</a></div>
+<div class="card"><h3>🧬 RNA-seq</h3><p>火山图、富集分析、热图分析。</p><a href="RNAseq/index.html">进入模块</a></div>
+<div class="card"><h3>📊 Violin</h3><p>多基因表达可视化。</p><a href="Violin/index.html">进入模块</a></div>
+</div>
+<div class="panel"><h3>分析流程</h3><p>选择数据 → 自动识别 → 调用R/生信工具 → 保存结果。</p></div>
+</div>
+</div>
+<script src="assets/app.js"></script>
 </body>
 </html>
