@@ -1,2 +1,45 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><title>WGS分析</title><style>body{font-family:Microsoft YaHei;background:#f5f7fb;padding:40px}.box{background:white;padding:25px;border-radius:15px}</style></head><body><h1>🧬 全基因组测序分析</h1><div class="box"><h3>项目文件夹</h3><p>系统将识别FASTQ、FASTA、BAM、VCF等基因组分析文件。</p><h3>分析流程</h3><p>质量控制、比对、SNP检测、注释分析接口预留。</p></div></body></html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>WGS分析</title>
+<link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body>
+<div class="container">
+<h1>🧬 全基因组测序分析</h1>
+
+<div class="panel">
+<h3>1. 上传FASTQ数据</h3>
+<input type="file" id="fastqR1"><br><br>
+<input type="file" id="fastqR2">
+</div>
+
+<div class="panel">
+<h3>2. 目标基因</h3>
+<input id="geneID" placeholder="例如 TGGT1_xxxxxx">
+</div>
+
+<div class="panel">
+<h3>3. 分析流程</h3>
+<p>FASTQ → fastp → BWA → samtools → BAM/BAI → IGV</p>
+</div>
+
+<button onclick="runWGS()">开始分析</button>
+
+<div class="result" id="result">等待分析</div>
+</div>
+
+<script src="../../assets/app.js"></script>
+<script>
+async function runWGS(){
+let r1=document.getElementById('fastqR1').files[0];
+let r2=document.getElementById('fastqR2').files[0];
+let gene=document.getElementById('geneID').value;
+if(!r1||!r2){alert('请选择FASTQ文件');return;}
+
+document.getElementById('result').innerHTML='文件已选择，等待本地BioSeq Engine处理';
+}
+</script>
+</body>
+</html>
