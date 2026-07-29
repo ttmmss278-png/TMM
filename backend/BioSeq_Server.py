@@ -18,10 +18,7 @@ os.makedirs(RESULT_DIR, exist_ok=True)
 
 @app.route('/status')
 def status():
-    return jsonify({
-        'service': 'running',
-        'version': '1.0.0'
-    })
+    return jsonify({'service':'running','version':'1.0.0'})
 
 
 @app.route('/upload', methods=['POST'])
@@ -39,10 +36,7 @@ def upload():
 def scan():
     data = request.json or {}
     path = data.get('path', UPLOAD_DIR)
-    return jsonify({
-        'status':'success',
-        'files':scan_project(path)
-    })
+    return jsonify({'status':'success','files':scan_project(path)})
 
 
 @app.route('/run', methods=['POST'])
@@ -52,6 +46,14 @@ def run():
     path = data.get('path', UPLOAD_DIR)
     output = os.path.join(RESULT_DIR, module or 'unknown')
     os.makedirs(output, exist_ok=True)
+
+    if module == 'wgs':
+        return jsonify(run_wgs(
+            data.get('r1'),
+            data.get('r2'),
+            data.get('reference'),
+            output
+        ))
 
     scripts = {
         'volcano':'../R_scripts/RNAseq/volcano_web.R',
