@@ -12,11 +12,27 @@ TMM BioSeq 是一个由 GitHub Pages 前端和本机 BioSeq Engine 组成的生�
 ## 使用方式
 
 1. 下载或克隆本仓库到 Windows 电脑。
-2. 双击 `BioSeq_Local_Service/BioSeq_Start.bat`。
-3. 保持命令窗口开启，然后访问在线工作台。
-4. 进入模块，选择文件、提交任务并预览或下载结果。
+2. 首次使用时，双击 `BioSeq_Local_Service/BioSeq_AutoStart_Setup.bat`，注册网页一键启动协议并启动引擎。
+3. 保持 BioSeq Engine 命令窗口开启，然后访问在线工作台。
+4. 以后网页显示“分析引擎未启动”时，可以直接点击状态旁的“启动”按钮。
+5. 进入模块，选择文件、提交任务并预览或下载结果。
 
 GitHub Pages 只提供网页界面。FASTQ、表达矩阵、参考基因组和分析结果均由本机 `http://127.0.0.1:8765` 服务处理，不会自动提交到 GitHub。
+
+## 网页一键启动分析引擎
+
+`BioSeq_AutoStart_Setup.bat` 会在当前 Windows 用户下注册 `bioseq://start` 自定义协议，不需要管理员权限。网页检测到引擎离线时会显示“启动”按钮；点击后调用该协议并运行同一目录中的 `BioSeq_Start.bat`，随后持续检测本机 8765 端口。
+
+首次从浏览器调用时，Edge/Chrome 会询问是否允许打开 BioSeq Engine Launcher。选择允许后即可启动。浏览器安全策略不允许网页在未经确认的情况下静默执行本地 BAT。
+
+安装器和 `BioSeq_Start.bat` 必须放在同一目录：
+
+```text
+TMM/
+└─ BioSeq_Local_Service/
+   ├─ BioSeq_AutoStart_Setup.bat
+   └─ BioSeq_Start.bat
+```
 
 ## 模块
 
