@@ -21,6 +21,7 @@ if not exist "%STARTER%" goto :missing_starter
 
 echo [1/3] 正在注册 bioseq:// 启动协议...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+ "$q=[char]34;" ^
  "$base='HKCU:\Software\Classes\bioseq';" ^
  "New-Item -Path $base -Force ^| Out-Null;" ^
  "Set-Item -Path $base -Value 'URL:BioSeq Engine Launcher';" ^
@@ -28,7 +29,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
  "New-Item -Path ($base+'\DefaultIcon') -Force ^| Out-Null;" ^
  "Set-Item -Path ($base+'\DefaultIcon') -Value ($env:SystemRoot+'\System32\cmd.exe,0');" ^
  "New-Item -Path ($base+'\shell\open\command') -Force ^| Out-Null;" ^
- "$command='""'+$env:SystemRoot+'\System32\cmd.exe"" /d /c """"'+$env:BIOSEQ_LAUNCHER+'"" ""%%1""""';" ^
+ "$command=$q+$env:SystemRoot+'\System32\cmd.exe'+$q+' /d /c '+$q+$q+$env:BIOSEQ_LAUNCHER+$q+' '+$q+'%%1'+$q+$q;" ^
  "Set-Item -Path ($base+'\shell\open\command') -Value $command;"
 
 if errorlevel 1 (
