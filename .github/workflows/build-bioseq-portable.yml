@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: bioseq-portable-v1.4.0
+  cancel-in-progress: true
+
 env:
   RELEASE_TAG: bioseq-portable-v1.4.0
   PACKAGE_NAME: TMM_BioSeq_Portable_WGS_v1.4.0.zip
