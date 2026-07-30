@@ -2,11 +2,17 @@ const BIOSEQ_API = localStorage.getItem('bioseq_api') || 'http://127.0.0.1:8765'
 const BIOSEQ_START_PROTOCOL = 'bioseq://start';
 const BIOSEQ_MIN_ENGINE_VERSION = String(window.BIOSEQ_MIN_ENGINE_VERSION || '').trim();
 const BIOSEQ_REQUIRE_WGS = Boolean(window.BIOSEQ_REQUIRE_WGS);
+const BIOSEQ_WGS_BUNDLE_URL = String(
+  window.BIOSEQ_WGS_BUNDLE_URL ||
+  'https://github.com/ttmmss278-png/TMM/releases/download/bioseq-portable-v1.4.0/TMM_BioSeq_Portable_WGS_v1.4.0.zip'
+).trim();
+
 let BIOSEQ_CURRENT_PATH = 'uploads';
 let BIOSEQ_ENGINE_ONLINE = false;
 let BIOSEQ_ENGINE_STARTING = false;
 let BIOSEQ_ENGINE_DATA = null;
 let BIOSEQ_ENVIRONMENT_DATA = null;
+let BIOSEQ_LAST_INSPECTION = null;
 
 function byId(id){ return document.getElementById(id); }
 
@@ -40,10 +46,11 @@ function engineVersionCompatible(data){
 function setEngineStatus(text,ok=false,options={}){
   BIOSEQ_ENGINE_ONLINE = ok;
   BIOSEQ_ENGINE_STARTING = Boolean(options.starting);
-  const canStart=!ok&&!BIOSEQ_ENGINE_STARTING;
-  const buttonLabel=options.buttonLabel||'启动/修复';
+  const canAct=!ok&&!BIOSEQ_ENGINE_STARTING;
+  const buttonLabel=options.buttonLabel||'启动';
+  const actionName=options.actionName||'startBioSeqEngine';
   document.querySelectorAll('[data-engine-status]').forEach(el => {
-    el.innerHTML = `<span class="engine-dot ${ok?'online':BIOSEQ_ENGINE_STARTING?'starting':''}"></span><span class="engine-status-text">${escapeHtml(text)}</span>${canStart?`<button class="engine-start-btn" type="button" onclick="startBioSeqEngine(event)">${escapeHtml(buttonLabel)}</button>`:''}`;
+    el.innerHTML = `<span class="engine-dot ${ok?'online':BIOSEQ_ENGINE_STARTING?'starting':''}"></span><span class="engine-status-text">${escapeHtml(text)}</span>${canAct?`<button class="engine-start-btn" type="button" onclick="${actionName}(event)">${escapeHtml(buttonLabel)}</button>`:''}`;
   });
   const legacy=byId('engineStatus');
   if(legacy){
@@ -66,11 +73,11 @@ async function fetchJsonWithTimeout(url,timeoutMs=2500){
   }
 }
 
-async function probeEngine(timeoutMs=2500){
+async function probeEngine(timeoutMs=2200){
   return fetchJsonWithTimeout(`${BIOSEQ_API}/status`,timeoutMs);
 }
 
-async function probeEnvironment(timeoutMs=8000){
+async function probeEnvironment(timeoutMs=5000){
   return fetchJsonWithTimeout(`${BIOSEQ_API}/environment`,timeoutMs);
 }
 
@@ -78,45 +85,65 @@ async function inspectEngine(){
   const status=await probeEngine();
   BIOSEQ_ENGINE_DATA=status;
   BIOSEQ_ENVIRONMENT_DATA=null;
-  if(!status) return {ready:false,reason:'offline',status:null,environment:null};
+
+  if(!status){
+    BIOSEQ_LAST_INSPECTION={ready:false,reason:'offline',status:null,environment:null};
+    return BIOSEQ_LAST_INSPECTION;
+  }
   if(!engineVersionCompatible(status)){
-    return {ready:false,reason:'outdated',status,environment:null};
+    BIOSEQ_LAST_INSPECTION={ready:false,reason:'outdated',status,environment:null};
+    return BIOSEQ_LAST_INSPECTION;
   }
   if(BIOSEQ_REQUIRE_WGS){
     const environment=await probeEnvironment();
     BIOSEQ_ENVIRONMENT_DATA=environment;
     if(!environment?.wgs?.ready){
-      return {ready:false,reason:'wgs-unavailable',status,environment};
+      BIOSEQ_LAST_INSPECTION={ready:false,reason:'wgs-unavailable',status,environment};
+      return BIOSEQ_LAST_INSPECTION;
     }
-    return {ready:true,reason:'ready',status,environment};
+    BIOSEQ_LAST_INSPECTION={ready:true,reason:'ready',status,environment};
+    return BIOSEQ_LAST_INSPECTION;
   }
-  return {ready:true,reason:'ready',status,environment:null};
+  BIOSEQ_LAST_INSPECTION={ready:true,reason:'ready',status,environment:null};
+  return BIOSEQ_LAST_INSPECTION;
 }
 
 function describeInspection(inspection){
   const version=inspection?.status?.version||'未知';
   if(inspection.reason==='outdated'){
-    return `引擎版本过旧 · v${version}，WGS 需要 v${BIOSEQ_MIN_ENGINE_VERSION}`;
+    return `引擎版本过旧 · v${version}，需要 v${BIOSEQ_MIN_ENGINE_VERSION}`;
   }
   if(inspection.reason==='wgs-unavailable'){
     const missing=inspection?.environment?.wgs?.missing_tools||['fastp','bwa','samtools'];
-    return `WGS 环境未就绪 · 缺少 ${missing.join('、')}`;
+    return `WGS 离线工具包未安装 · 缺少 ${missing.join('、')}`;
   }
   if(inspection.reason==='ready'){
     const backend=inspection?.environment?.wgs?.backend;
-    return `分析引擎已连接 · v${version}${backend?` · ${backend.toUpperCase()}`:''}`;
+    const backendLabel=backend==='portable-wsl'?'PORTABLE WSL':backend?.toUpperCase();
+    return `分析引擎已连接 · v${version}${backendLabel?` · ${backendLabel}`:''}`;
   }
   return '分析引擎未启动';
 }
 
 async function checkEngine(){
-  setEngineStatus('正在检测本地分析引擎…',false,{starting:true});
+  setEngineStatus('正在快速检测本地分析引擎…',false,{starting:true});
   const inspection=await inspectEngine();
   if(inspection.ready){
     setEngineStatus(describeInspection(inspection),true);
     return true;
   }
-  setEngineStatus(describeInspection(inspection),false,{buttonLabel:'升级/修复'});
+
+  if(BIOSEQ_REQUIRE_WGS && ['outdated','wgs-unavailable'].includes(inspection.reason)){
+    setEngineStatus(describeInspection(inspection),false,{
+      buttonLabel:'下载离线工具包',
+      actionName:'downloadWgsBundle'
+    });
+  }else{
+    setEngineStatus(describeInspection(inspection),false,{
+      buttonLabel:'启动',
+      actionName:'startBioSeqEngine'
+    });
+  }
   return false;
 }
 
@@ -127,18 +154,45 @@ function invokeBioSeqProtocol(action='start'){
   link.setAttribute('aria-hidden','true');
   document.body.appendChild(link);
   link.click();
-  setTimeout(()=>link.remove(),1500);
+  setTimeout(()=>link.remove(),1200);
 }
 
-async function waitForEngine(maxAttempts=240,intervalMs=1500){
+function downloadWgsBundle(event){
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  window.open(BIOSEQ_WGS_BUNDLE_URL,'_blank','noopener');
+  setEngineStatus('请解压离线工具包并运行安装器，完成后点击“重新检测”',false,{
+    buttonLabel:'重新检测',
+    actionName:'retryEngineCheck'
+  });
+  return false;
+}
+
+function retryEngineCheck(event){
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  checkEngine();
+  if(typeof refreshWgsEnvironment==='function') refreshWgsEnvironment();
+  return false;
+}
+
+async function waitForEngine(maxAttempts=15,intervalMs=1000){
   for(let attempt=1;attempt<=maxAttempts;attempt+=1){
     const inspection=await inspectEngine();
     if(inspection.ready){
       setEngineStatus(describeInspection(inspection),true);
       return true;
     }
-    const current=describeInspection(inspection);
-    setEngineStatus(`正在修复分析环境… ${attempt}/${maxAttempts} · ${current}`,false,{starting:true});
+
+    if(BIOSEQ_REQUIRE_WGS && inspection.reason==='wgs-unavailable'){
+      setEngineStatus(describeInspection(inspection),false,{
+        buttonLabel:'下载离线工具包',
+        actionName:'downloadWgsBundle'
+      });
+      return false;
+    }
+
+    setEngineStatus(`正在启动分析引擎… ${attempt}/${maxAttempts}`,false,{starting:true});
     await new Promise(resolve=>setTimeout(resolve,intervalMs));
   }
   return false;
@@ -155,11 +209,18 @@ async function startBioSeqEngine(event){
     return true;
   }
 
-  setEngineStatus('正在调用本地一体化启动器…',false,{starting:true});
-  invokeBioSeqProtocol(inspection.reason==='offline'?'start':'repair');
+  if(BIOSEQ_REQUIRE_WGS && ['outdated','wgs-unavailable'].includes(inspection.reason)){
+    return downloadWgsBundle(event);
+  }
+
+  setEngineStatus('正在调用本地快速启动器…',false,{starting:true});
+  invokeBioSeqProtocol('start');
   const started=await waitForEngine();
-  if(!started){
-    setEngineStatus('修复未完成，请运行最新版 BioSeq Engine Manager BAT',false,{buttonLabel:'重试'});
+  if(!started && !BIOSEQ_LAST_INSPECTION?.environment?.wgs){
+    setEngineStatus('启动未完成，请运行离线包中的 BioSeq_Quick_Start.bat',false,{
+      buttonLabel:'重试',
+      actionName:'retryEngineCheck'
+    });
   }
   return started;
 }
@@ -206,7 +267,7 @@ async function uploadNamedFiles(entries,boxId='resultLog'){
     setResult(boxId,`已上传 ${data.files?.length||0} 个文件。`,'success');
     return data.files||[];
   }catch(error){
-    setResult(boxId,`${error.message}\n请先运行最新版 BioSeq Engine Manager。`,'error');
+    setResult(boxId,`${error.message}\n请先启动 BioSeq Engine。`,'error');
     throw error;
   }
 }
@@ -285,7 +346,7 @@ async function runAnalysis(module,payload={},boxId='resultLog',filesTargetId='re
     }
     return data;
   }catch(error){
-    setResult(boxId,`${error.message}\n请检查引擎版本、WGS 工具和参考基因组状态。`,'error');
+    setResult(boxId,`${error.message}\n请检查引擎、离线 WGS 工具包和参考基因组状态。`,'error');
     if(filesTarget) filesTarget.innerHTML='<div class="notice">任务执行失败，未生成新的结果文件。</div>';
     throw error;
   }
