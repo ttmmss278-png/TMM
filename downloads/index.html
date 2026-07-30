@@ -6,135 +6,63 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>TMM BioSeq 离线工具包下载</title>
-<link rel="stylesheet" href="../assets/style.css?v=20260730-5">
-<link rel="stylesheet" href="../assets/engine-status.css?v=20260730-5">
+<title>TMM BioSeq WGS 工具安装</title>
+<link rel="stylesheet" href="../assets/style.css?v=20260730-7">
+<link rel="stylesheet" href="../assets/engine-status.css?v=20260730-7">
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand"><div class="brand-mark">🧬</div><div><strong>TMM BioSeq</strong><span>Download Center</span></div></div>
+    <div class="brand"><div class="brand-mark">🧬</div><div><strong>TMM BioSeq</strong><span>WGS Setup</span></div></div>
     <nav class="side-nav">
-      <a href="../?v=20260730-5"><span class="nav-icon">⌂</span>首页工作台</a>
-      <a href="../WGS/?v=20260730-5"><span class="nav-icon">🧬</span>全基因组测序</a>
-      <a href="../RNAseq/?v=20260730-5"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
-      <a href="../Violin/?v=20260730-5"><span class="nav-icon">▥</span>小提琴图绘制</a>
+      <a href="../?v=20260730-7"><span class="nav-icon">⌂</span>首页工作台</a>
+      <a href="../WGS/?v=20260730-7"><span class="nav-icon">🧬</span>全基因组测序</a>
+      <a href="../RNAseq/?v=20260730-7"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
+      <a href="../Violin/?v=20260730-7"><span class="nav-icon">▥</span>小提琴图绘制</a>
     </nav>
-    <div class="sidebar-footer"><p>此页面只检查 GitHub Release 是否已生成，不会安装任何软件。</p></div>
+    <div class="sidebar-footer"><p>本页面不再调用 GitHub API，因此不会出现 HTTP 403 查询失败。</p></div>
   </aside>
 
   <main class="main-content">
     <div class="module-page">
-      <a class="back-link" href="../WGS/?v=20260730-5">← 返回 WGS 工作台</a>
+      <a class="back-link" href="../WGS/?v=20260730-7">← 返回 WGS 工作台</a>
       <div class="page-head">
-        <div class="page-title"><div class="module-icon">⇩</div><div><h1>WGS 离线便携工具包</h1><p>一次下载，包含 BioSeq Engine v1.4.0、便携 Python、fastp、BWA、samtools 和 bcftools。</p></div></div>
+        <div class="page-title"><div class="module-icon">⇩</div><div><h1>安装 WGS 必需工具</h1><p>当前引擎已连接时，只需补充 fastp、BWA、samtools 和 bcftools。</p></div></div>
       </div>
 
       <section class="panel">
-        <h3>发布状态</h3>
-        <div id="releaseStatus" class="notice info">正在查询 GitHub Release…</div>
-        <div id="assetSummary" class="file-summary" style="margin-top:14px">
-          <div class="file-item"><strong>TMM_BioSeq_Portable_WGS_v1.4.0.zip</strong><span>查询中</span></div>
+        <h3>推荐：立即安装缺失工具</h3>
+        <div class="notice info">适用于当前已经能够连接 BioSeq Engine v1.3.1，但 WGS 页面提示缺少 fastp、bwa、samtools 的电脑。</div>
+        <div class="file-summary" style="margin-top:14px">
+          <div class="file-item"><strong>Install_WGS_Tools_Immediate.bat</strong><span>一次性安装四个 WGS 工具</span></div>
         </div>
         <div class="action-row">
-          <a id="downloadButton" class="btn" href="#" aria-disabled="true" style="pointer-events:none;opacity:.55">离线包尚未就绪</a>
-          <a id="checksumButton" class="btn secondary" href="#" aria-disabled="true" style="pointer-events:none;opacity:.55">SHA-256</a>
-          <button class="btn secondary" type="button" onclick="checkRelease()">重新查询</button>
+          <a class="btn" href="https://github.com/ttmmss278-png/TMM/raw/refs/heads/main/BioSeq_Local_Service/Install_WGS_Tools_Immediate.bat">下载即时安装器</a>
+          <a class="btn secondary" href="../WGS/?v=20260730-7">返回 WGS 页面</a>
         </div>
+        <small>下载后双击运行，出现管理员权限提示时选择“是”。安装窗口会显示 Ubuntu 的实时安装进度，不会再出现 240 次网页等待。</small>
       </section>
 
       <section class="panel" style="margin-top:18px">
-        <h3>安装方式</h3>
+        <h3>操作步骤</h3>
         <div class="workflow">
-          <div class="workflow-step"><strong>1</strong><b>完整解压 ZIP</b><span>不要在压缩包预览窗口内运行</span></div>
-          <div class="workflow-step"><strong>2</strong><b>运行安装器</b><span>双击 Install_TMM_BioSeq_Portable.bat</span></div>
-          <div class="workflow-step"><strong>3</strong><b>一次性复制</b><span>不联网、不运行 apt、不临时安装工具</span></div>
-          <div class="workflow-step"><strong>4</strong><b>返回网页</b><span>点击快速启动或重新检测环境</span></div>
+          <div class="workflow-step"><strong>1</strong><b>下载安装器</b><span>保存到桌面或下载目录</span></div>
+          <div class="workflow-step"><strong>2</strong><b>双击运行</b><span>管理员权限选择“是”</span></div>
+          <div class="workflow-step"><strong>3</strong><b>等待完成</b><span>安装 fastp、BWA、samtools、bcftools</span></div>
+          <div class="workflow-step"><strong>4</strong><b>返回网页</b><span>Ctrl+F5 后点击“检测分析环境”</span></div>
         </div>
-        <div class="notice" style="margin-top:16px">当前便携工具运行于 Ubuntu WSL。电脑需要已经安装并初始化过 Ubuntu WSL；安装器不会在 BAT 中修改 Windows 系统组件。</div>
+        <div class="notice" style="margin-top:16px">安装器使用电脑中已有的 Ubuntu WSL。首次安装工具需要联网下载 Ubuntu 软件包；以后启动 BioSeq Engine 不会重复安装。</div>
       </section>
 
       <section class="panel" style="margin-top:18px">
-        <h3>包内内容</h3>
-        <div class="file-summary">
-          <div class="file-item"><strong>BioSeq Engine</strong><span>v1.4.0</span></div>
-          <div class="file-item"><strong>便携 Python</strong><span>Python 3.12 + Flask</span></div>
-          <div class="file-item"><strong>WGS 工具</strong><span>fastp / BWA / samtools / bcftools</span></div>
-          <div class="file-item"><strong>启动方式</strong><span>BioSeq_Quick_Start.bat，最多检测约 15 秒</span></div>
+        <h3>完整离线包（备用）</h3>
+        <p>完整离线包包含便携 Python 和预打包 WGS 工具，体积较大。Release 构建完成后可直接尝试下载；即时安装器更适合你当前已经有 v1.3.1 引擎的情况。</p>
+        <div class="action-row">
+          <a class="btn secondary" href="https://github.com/ttmmss278-png/TMM/releases/download/bioseq-portable-v1.4.0/TMM_BioSeq_Portable_WGS_v1.4.0.zip">尝试下载完整离线包</a>
         </div>
       </section>
     </div>
   </main>
 </div>
-<script>
-const RELEASE_API='https://api.github.com/repos/ttmmss278-png/TMM/releases/tags/bioseq-portable-v1.4.0';
-const PACKAGE_NAME='TMM_BioSeq_Portable_WGS_v1.4.0.zip';
-const CHECKSUM_NAME=PACKAGE_NAME+'.sha256';
-
-function formatBytes(bytes){
-  if(!Number.isFinite(bytes)||bytes<=0) return '未知大小';
-  const units=['B','KB','MB','GB'];
-  const index=Math.min(Math.floor(Math.log(bytes)/Math.log(1024)),units.length-1);
-  return `${(bytes/Math.pow(1024,index)).toFixed(index===0?0:1)} ${units[index]}`;
-}
-
-function setLink(id,asset,label){
-  const link=document.getElementById(id);
-  if(!asset){
-    link.href='#';
-    link.setAttribute('aria-disabled','true');
-    link.style.pointerEvents='none';
-    link.style.opacity='.55';
-    if(label) link.textContent=label;
-    return;
-  }
-  link.href=asset.browser_download_url;
-  link.removeAttribute('aria-disabled');
-  link.style.pointerEvents='';
-  link.style.opacity='';
-  if(label) link.textContent=label;
-}
-
-async function checkRelease(){
-  const status=document.getElementById('releaseStatus');
-  const summary=document.getElementById('assetSummary');
-  status.className='notice info';
-  status.textContent='正在查询 GitHub Release…';
-  setLink('downloadButton',null,'离线包尚未就绪');
-  setLink('checksumButton',null,'SHA-256');
-
-  try{
-    const response=await fetch(RELEASE_API,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
-    if(response.status===404){
-      status.className='notice';
-      status.textContent='离线包仍在 GitHub Actions 构建中。无需在网页等待，稍后点击“重新查询”。';
-      summary.innerHTML=`<div class="file-item"><strong>${PACKAGE_NAME}</strong><span>构建中</span></div>`;
-      return;
-    }
-    if(!response.ok) throw new Error(`GitHub API 返回 HTTP ${response.status}`);
-    const release=await response.json();
-    const assets=Array.isArray(release.assets)?release.assets:[];
-    const packageAsset=assets.find(asset=>asset.name===PACKAGE_NAME);
-    const checksumAsset=assets.find(asset=>asset.name===CHECKSUM_NAME);
-    if(!packageAsset){
-      status.className='notice';
-      status.textContent='Release 已建立，但完整 ZIP 尚未上传完成。稍后重新查询。';
-      summary.innerHTML=`<div class="file-item"><strong>${PACKAGE_NAME}</strong><span>正在上传</span></div>`;
-      return;
-    }
-    status.className='notice info';
-    status.textContent=`离线包已发布：${release.name||release.tag_name}`;
-    summary.innerHTML=`<div class="file-item"><strong>${packageAsset.name}</strong><span>${formatBytes(packageAsset.size)}</span></div>`;
-    setLink('downloadButton',packageAsset,'下载完整离线包');
-    setLink('checksumButton',checksumAsset,checksumAsset?'下载 SHA-256':'SHA-256 尚未上传');
-  }catch(error){
-    status.className='notice';
-    status.textContent=`无法查询发布状态：${error.message}。可稍后重新查询。`;
-    summary.innerHTML=`<div class="file-item"><strong>${PACKAGE_NAME}</strong><span>状态未知</span></div>`;
-  }
-}
-
-document.addEventListener('DOMContentLoaded',checkRelease);
-</script>
 </body>
 </html>
