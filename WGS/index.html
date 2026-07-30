@@ -7,18 +7,18 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>WGS 全基因组测序分析｜TMM BioSeq</title>
-<link rel="stylesheet" href="../assets/style.css?v=20260730-4">
-<link rel="stylesheet" href="../assets/engine-status.css?v=20260730-4">
+<link rel="stylesheet" href="../assets/style.css?v=20260730-5">
+<link rel="stylesheet" href="../assets/engine-status.css?v=20260730-5">
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
     <div class="brand"><div class="brand-mark">🧬</div><div><strong>TMM BioSeq</strong><span>WGS Module</span></div></div>
     <nav class="side-nav">
-      <a href="../"><span class="nav-icon">⌂</span>首页工作台</a>
-      <a class="active" href="./"><span class="nav-icon">🧬</span>全基因组测序</a>
-      <a href="../RNAseq/"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
-      <a href="../Violin/"><span class="nav-icon">▥</span>小提琴图绘制</a>
+      <a href="../?v=20260730-5"><span class="nav-icon">⌂</span>首页工作台</a>
+      <a class="active" href="./?v=20260730-5"><span class="nav-icon">🧬</span>全基因组测序</a>
+      <a href="../RNAseq/?v=20260730-5"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
+      <a href="../Violin/?v=20260730-5"><span class="nav-icon">▥</span>小提琴图绘制</a>
     </nav>
     <div class="sidebar-footer">
       <p>WGS 使用一次安装的便携工具包，启动时不再联网安装。</p>
@@ -28,7 +28,7 @@
 
   <main class="main-content">
     <div class="module-page">
-      <a class="back-link" href="../">← 返回首页工作台</a>
+      <a class="back-link" href="../?v=20260730-5">← 返回首页工作台</a>
       <div class="page-head">
         <div class="page-title">
           <div class="module-icon">🧬</div>
@@ -42,7 +42,7 @@
 
       <section class="panel">
         <h3>0. 分析环境</h3>
-        <p>WGS 工具改为离线便携包。工具只安装一次，日常启动通常在数秒内完成，不再等待 240 次检测。</p>
+        <p>WGS 工具采用离线便携包。工具只安装一次，日常启动通常在数秒内完成，不再执行 240 次轮询或在启动时安装软件。</p>
         <div id="wgsEnvironmentStatus" class="notice info">正在快速检查 BioSeq Engine v1.4.0 和便携 WGS 工具包…</div>
 
         <div id="wgsToolCards" class="file-summary" style="margin-top:14px">
@@ -57,7 +57,7 @@
           <button class="btn" type="button" onclick="downloadWgsBundle(event)">下载离线便携工具包</button>
           <button class="btn secondary" type="button" onclick="startBioSeqEngine(event)">快速启动引擎</button>
         </div>
-        <small>离线包包含便携 Python、BioSeq Engine 及预装的 fastp、BWA、samtools、bcftools；安装时只复制和解压包内文件。</small>
+        <small>离线包包含便携 Python、BioSeq Engine 及预装的 fastp、BWA、samtools、bcftools。完整解压后运行安装器；安装过程只复制和解压包内文件。</small>
       </section>
 
       <section class="panel" style="margin-top:18px">
@@ -108,7 +108,7 @@ window.BIOSEQ_MIN_ENGINE_VERSION='1.4.0';
 window.BIOSEQ_REQUIRE_WGS=true;
 window.BIOSEQ_WGS_BUNDLE_URL='https://github.com/ttmmss278-png/TMM/releases/download/bioseq-portable-v1.4.0/TMM_BioSeq_Portable_WGS_v1.4.0.zip';
 </script>
-<script src="../assets/app.js?v=20260730-4"></script>
+<script src="../assets/app.js?v=20260730-5"></script>
 <script>
 const wgsInputs=['r1File','r2File','referenceFile'];
 let defaultReferenceInstalled=false;
