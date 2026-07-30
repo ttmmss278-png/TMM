@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$ModeArg = '',
     [string]$SelfBat = ''
 )
@@ -14,7 +14,7 @@ $Runtime = Join-Path $Root 'runtime'
 $Venv = Join-Path $Runtime 'venv'
 $VenvPython = Join-Path $Venv 'Scripts\python.exe'
 $LogDir = Join-Path $Root 'logs'
-$Log = Join-Path $LogDir 'manager_v132.log'
+$Log = Join-Path $LogDir 'manager_v133.log'
 $EngineStdout = Join-Path $LogDir 'engine_v131_stdout.log'
 $EngineStderr = Join-Path $LogDir 'engine_v131_stderr.log'
 $FixedBat = Join-Path $Root 'BioSeq_Engine_Manager_v132.bat'
@@ -27,7 +27,7 @@ $ExpectedVersion = '1.3.1'
 $RawBase = 'https://raw.githubusercontent.com/ttmmss278-png/TMM/main'
 
 New-Item -ItemType Directory -Path $Root, $App, $Runtime, $LogDir -Force | Out-Null
-"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] TMM BioSeq Engine Manager v1.3.2`nMode: $ModeArg`nSelf: $SelfBat" |
+"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] TMM BioSeq Engine Manager v1.3.3`nMode: $ModeArg`nSelf: $SelfBat" |
     Set-Content -LiteralPath $Log -Encoding UTF8
 
 function Write-Step {
@@ -210,21 +210,68 @@ function Ensure-PythonEnvironment {
     }
 }
 
-function Get-UbuntuDistro {
+function Invoke-WslSafe {
+    param(
+        [string[]]$Arguments,
+        [switch]$CaptureOutput
+    )
+
     $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
     if (-not $wsl) {
-        return $null
+        return [pscustomobject]@{ ExitCode = 127; Output = @(); ErrorText = 'wsl.exe is unavailable.' }
     }
+
+    $oldPreference = $ErrorActionPreference
+    $nativeVariable = Get-Variable -Name PSNativeCommandUseErrorActionPreference -Scope Global -ErrorAction SilentlyContinue
+    $oldNativePreference = $null
+    if ($nativeVariable) {
+        $oldNativePreference = $global:PSNativeCommandUseErrorActionPreference
+    }
+
     try {
-        $items = @(& $wsl.Source -l -q 2>$null)
-        foreach ($item in $items) {
-            $clean = ([string]$item -replace "`0", '').Trim()
-            if ($clean -like 'Ubuntu*') {
-                return $clean
-            }
+        $ErrorActionPreference = 'Continue'
+        if ($nativeVariable) {
+            $global:PSNativeCommandUseErrorActionPreference = $false
+        }
+
+        if ($CaptureOutput) {
+            $output = @(& $wsl.Source @Arguments 2>> $Log)
+        }
+        else {
+            $output = @(& $wsl.Source @Arguments *>> $Log)
+        }
+        $exitCode = $LASTEXITCODE
+
+        if ($CaptureOutput -and $output.Count -gt 0) {
+            Add-Content -LiteralPath $Log -Value ($output -join [Environment]::NewLine) -Encoding UTF8
+        }
+
+        return [pscustomobject]@{
+            ExitCode = $exitCode
+            Output = $output
+            ErrorText = ''
         }
     }
-    catch {}
+    finally {
+        $ErrorActionPreference = $oldPreference
+        if ($nativeVariable) {
+            $global:PSNativeCommandUseErrorActionPreference = $oldNativePreference
+        }
+    }
+}
+
+function Get-UbuntuDistro {
+    $result = Invoke-WslSafe -Arguments @('-l', '-q') -CaptureOutput
+    if ($result.ExitCode -ne 0) {
+        return $null
+    }
+
+    foreach ($item in $result.Output) {
+        $clean = ([string]$item -replace "`0", '').Trim()
+        if ($clean -like 'Ubuntu*') {
+            return $clean
+        }
+    }
     return $null
 }
 
@@ -237,14 +284,16 @@ function Test-WgsTools {
         return $true
     }
 
-    $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
     $distro = Get-UbuntuDistro
-    if (-not $wsl -or -not $distro) {
+    if (-not $distro) {
         return $false
     }
 
-    & $wsl.Source -d $distro -u root -- bash -lc 'command -v fastp >/dev/null 2>&1 && command -v bwa >/dev/null 2>&1 && command -v samtools >/dev/null 2>&1' 2>$null
-    return $LASTEXITCODE -eq 0
+    $result = Invoke-WslSafe -Arguments @(
+        '-d', $distro, '-u', 'root', '--', 'bash', '-lc',
+        'command -v fastp >/dev/null 2>&1 && command -v bwa >/dev/null 2>&1 && command -v samtools >/dev/null 2>&1'
+    )
+    return $result.ExitCode -eq 0
 }
 
 function Test-Administrator {
@@ -260,8 +309,7 @@ function Set-ResumeAfterRestart {
 }
 
 function Install-WgsTools {
-    $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
-    if (-not $wsl) {
+    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
         throw 'wsl.exe is unavailable on this Windows installation.'
     }
 
@@ -274,8 +322,8 @@ function Install-WgsTools {
             @('--install', '-d', 'Ubuntu')
         )
         foreach ($arguments in $attempts) {
-            & $wsl.Source @arguments *>> $Log
-            Start-Sleep -Seconds 2
+            $null = Invoke-WslSafe -Arguments $arguments
+            Start-Sleep -Seconds 3
             $distro = Get-UbuntuDistro
             if ($distro) {
                 break
@@ -291,21 +339,31 @@ function Install-WgsTools {
     New-Item -Path $configKey -Force | Out-Null
     Set-ItemProperty -Path $configKey -Name 'WslDistro' -Value $distro
 
-    & $wsl.Source -d $distro -u root -- bash -lc 'echo TMM_BIOSEQ_WSL_READY' *>> $Log
-    if ($LASTEXITCODE -ne 0) {
+    $readyResult = Invoke-WslSafe -Arguments @('-d', $distro, '-u', 'root', '--', 'bash', '-lc', 'echo TMM_BIOSEQ_WSL_READY')
+    if ($readyResult.ExitCode -ne 0) {
         Set-ResumeAfterRestart
         return 11
     }
 
     Write-Step '正在安装 fastp、BWA、samtools 和 bcftools...'
-    $installScript = 'set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y software-properties-common; add-apt-repository -y universe; apt-get update; apt-get install -y fastp bwa samtools bcftools'
-    & $wsl.Source -d $distro -u root -- bash -lc $installScript *>> $Log
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Ubuntu failed to install the WGS packages. See the manager log.'
+    $installScript = 'set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update -o Acquire::Retries=3; apt-get install -y software-properties-common; add-apt-repository -y universe || true; apt-get update -o Acquire::Retries=3; apt-get install -y fastp bwa samtools bcftools'
+    $installResult = Invoke-WslSafe -Arguments @('-d', $distro, '-u', 'root', '--', 'bash', '-lc', $installScript)
+
+    if ($installResult.ExitCode -ne 0) {
+        Write-Step '检测到 WSL 网络或代理异常，正在清除 Linux 代理变量后重试...'
+        $retryScript = 'unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy; ' + $installScript
+        $installResult = Invoke-WslSafe -Arguments @('-d', $distro, '-u', 'root', '--', 'bash', '-lc', $retryScript)
     }
 
-    & $wsl.Source -d $distro -u root -- bash -lc 'command -v fastp && command -v bwa && command -v samtools && command -v bcftools' *>> $Log
-    if ($LASTEXITCODE -ne 0) {
+    if ($installResult.ExitCode -ne 0) {
+        throw 'Ubuntu failed to install the WGS packages. The localhost proxy warning is no longer treated as fatal; check the manager log for the real apt error.'
+    }
+
+    $validationResult = Invoke-WslSafe -Arguments @(
+        '-d', $distro, '-u', 'root', '--', 'bash', '-lc',
+        'command -v fastp && command -v bwa && command -v samtools && command -v bcftools'
+    )
+    if ($validationResult.ExitCode -ne 0) {
         throw 'The WGS tools failed post-installation validation.'
     }
 
@@ -384,7 +442,7 @@ function Show-Success {
 try {
     if (-not $ProtocolMode) {
         Write-Host '=====================================================' -ForegroundColor DarkCyan
-        Write-Host '  TMM BioSeq Engine Manager v1.3.2' -ForegroundColor White
+        Write-Host '  TMM BioSeq Engine Manager v1.3.3' -ForegroundColor White
         Write-Host '=====================================================' -ForegroundColor DarkCyan
         Write-Host ''
     }
@@ -448,6 +506,7 @@ try {
         }
     }
 
+    Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce' -Name 'TMMBioSeqResume' -ErrorAction SilentlyContinue
     Show-Success
     Pause-Manual
     exit 0
@@ -462,7 +521,7 @@ catch {
         Write-Host "引擎错误：$EngineStderr"
         if (Test-Path -LiteralPath $Log) {
             Write-Host ''
-            Get-Content -LiteralPath $Log -Tail 35
+            Get-Content -LiteralPath $Log -Tail 40
         }
         if (Test-Path -LiteralPath $EngineStderr) {
             Write-Host ''
