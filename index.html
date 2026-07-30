@@ -7,18 +7,18 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>TMM BioSeq 生物测序分析工作台</title>
-<link rel="stylesheet" href="assets/style.css?v=20260730-5">
-<link rel="stylesheet" href="assets/engine-status.css?v=20260730-5">
+<link rel="stylesheet" href="assets/style.css?v=20260730-6">
+<link rel="stylesheet" href="assets/engine-status.css?v=20260730-6">
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar">
     <div class="brand"><div class="brand-mark">🧬</div><div><strong>TMM BioSeq</strong><span>Analysis Workbench</span></div></div>
     <nav class="side-nav">
-      <a class="active" href="./?v=20260730-5"><span class="nav-icon">⌂</span>首页工作台</a>
-      <a href="WGS/?v=20260730-5"><span class="nav-icon">🧬</span>全基因组测序</a>
-      <a href="RNAseq/?v=20260730-5"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
-      <a href="Violin/?v=20260730-5"><span class="nav-icon">▥</span>小提琴图绘制</a>
+      <a class="active" href="./?v=20260730-6"><span class="nav-icon">⌂</span>首页工作台</a>
+      <a href="WGS/?v=20260730-6"><span class="nav-icon">🧬</span>全基因组测序</a>
+      <a href="RNAseq/?v=20260730-6"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
+      <a href="Violin/?v=20260730-6"><span class="nav-icon">▥</span>小提琴图绘制</a>
     </nav>
     <div class="sidebar-footer">
       <p>计算任务由本机 BioSeq Engine 执行，网页负责文件选择、任务提交和结果预览。</p>
@@ -37,7 +37,7 @@
         <h2>选择分析模块，进入独立操作页面</h2>
         <p>工作台负责模块导航和任务状态管理。进入模块后可选择文件、设置参数、提交本地分析任务、预览结果并下载结果包。</p>
         <div class="hero-actions">
-          <a class="btn" href="WGS/?v=20260730-5">开始 WGS 分析</a>
+          <a class="btn" href="WGS/?v=20260730-6">开始 WGS 分析</a>
           <button class="btn secondary" type="button" onclick="checkEngine()">重新检测引擎</button>
         </div>
       </div>
@@ -51,19 +51,19 @@
 
     <div class="section-heading"><div><h2>分析模块</h2><p>点击整张卡片即可进入对应网页。</p></div></div>
     <section class="module-grid">
-      <a class="module-card" href="WGS/?v=20260730-5">
+      <a class="module-card" href="WGS/?v=20260730-6">
         <div class="module-icon">🧬</div><h3>全基因组测序分析</h3>
         <p>上传双端 FASTQ，使用离线便携工具包执行质量控制、比对、BAM 构建及变异分析。</p>
         <div class="tag-row"><span class="tag">FASTQ</span><span class="tag">BWA</span><span class="tag">samtools</span></div>
         <div class="module-enter"><span>进入 WGS 工作台</span><b>→</b></div>
       </a>
-      <a class="module-card" href="RNAseq/?v=20260730-5">
+      <a class="module-card" href="RNAseq/?v=20260730-6">
         <div class="module-icon">⌁</div><h3>RNA-seq 分析</h3>
         <p>上传转录组项目文件，自动识别差异表达、表达矩阵及富集分析文件，生成常用图件。</p>
         <div class="tag-row"><span class="tag">火山图</span><span class="tag">气泡图</span><span class="tag">热图</span></div>
         <div class="module-enter"><span>进入 RNA-seq 工作台</span><b>→</b></div>
       </a>
-      <a class="module-card" href="Violin/?v=20260730-5">
+      <a class="module-card" href="Violin/?v=20260730-6">
         <div class="module-icon">▥</div><h3>小提琴图绘制</h3>
         <p>上传表达矩阵并输入一个或多个基因编号，调用 R 脚本生成表达分布图和结果文件。</p>
         <div class="tag-row"><span class="tag">表达矩阵</span><span class="tag">Gene ID</span><span class="tag">PNG</span></div>
@@ -82,6 +82,6 @@
     </section>
   </main>
 </div>
-<script src="assets/app.js?v=20260730-5"></script>
+<script src="assets/app.js?v=20260730-6"></script>
 </body>
 </html>
