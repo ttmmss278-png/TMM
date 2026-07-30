@@ -1,0 +1,189 @@
+name: Build BioSeq Portable WGS Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-bioseq-portable.yml"
+      - "backend/BioSeq_Server_v140.py"
+      - "backend/wgs_runner_v140.py"
+      - "BioSeq_Local_Service/BioSeq_Quick_Start.bat"
+      - "BioSeq_Local_Service/Install_TMM_BioSeq_Portable.bat"
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: bioseq-portable-v1.4.0
+  PACKAGE_NAME: TMM_BioSeq_Portable_WGS_v1.4.0.zip
+
+jobs:
+  build-linux-tools:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install micromamba
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          micromamba-version: "2.6.2-1"
+          init-shell: none
+          generate-run-shell: false
+
+      - name: Build fixed-prefix WGS environment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo mkdir -p /opt/tmm-bioseq-wgs
+          sudo chown -R "$USER:$USER" /opt/tmm-bioseq-wgs
+          micromamba create -y -p /opt/tmm-bioseq-wgs \
+            -c conda-forge -c bioconda \
+            fastp bwa samtools bcftools
+          /opt/tmm-bioseq-wgs/bin/fastp --version
+          /opt/tmm-bioseq-wgs/bin/bwa 2>&1 | head -n 3 || true
+          /opt/tmm-bioseq-wgs/bin/samtools --version | head -n 1
+          /opt/tmm-bioseq-wgs/bin/bcftools --version | head -n 1
+
+      - name: Create tools archive and manifest
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          cat > dist/WGS_Tools_Manifest.txt <<EOF
+          TMM BioSeq portable WGS tools
+          Target: Linux x86_64 under Windows WSL
+          Install prefix: /opt/tmm-bioseq-wgs
+          Built: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          fastp: $(/opt/tmm-bioseq-wgs/bin/fastp --version 2>&1 | head -n 1)
+          bwa: $(/opt/tmm-bioseq-wgs/bin/bwa 2>&1 | head -n 1)
+          samtools: $(/opt/tmm-bioseq-wgs/bin/samtools --version | head -n 1)
+          bcftools: $(/opt/tmm-bioseq-wgs/bin/bcftools --version | head -n 1)
+          EOF
+          tar -C /opt/tmm-bioseq-wgs -czf dist/WGS_Tools_Linux_x86_64.tar.gz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-wgs-tools
+          path: dist/
+          compression-level: 0
+
+  build-windows-runtime:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+
+      - name: Install BioSeq Python dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install flask flask-cors werkzeug
+
+      - name: Create relocatable Python runtime
+        shell: pwsh
+        run: |
+          $base = python -c "import sys;print(sys.base_prefix)"
+          New-Item -ItemType Directory -Force -Path dist\portable_python | Out-Null
+          robocopy $base dist\portable_python /E /R:2 /W:1 /NFL /NDL /NJH /NJS
+          if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
+
+          Get-ChildItem dist\portable_python -Directory -Recurse -Filter __pycache__ |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          Get-ChildItem dist\portable_python -File -Recurse -Include *.pyc,*.pyo |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+
+          & .\dist\portable_python\python.exe -c "import flask,flask_cors,werkzeug;print('portable-python-ok')"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-python-runtime
+          path: dist/portable_python/
+          compression-level: 0
+
+  package-and-release:
+    runs-on: ubuntu-22.04
+    needs: [build-linux-tools, build-windows-runtime]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-wgs-tools
+          path: incoming/linux
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-python-runtime
+          path: incoming/portable_python
+
+      - name: Assemble offline package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          PACKAGE_DIR="dist/TMM_BioSeq_Portable_WGS_v1.4.0"
+          mkdir -p "$PACKAGE_DIR/app" "$PACKAGE_DIR/portable_python"
+
+          rsync -a ./ "$PACKAGE_DIR/app/" \
+            --exclude ".git/" \
+            --exclude ".github/" \
+            --exclude "dist/" \
+            --exclude "incoming/" \
+            --exclude "uploads/" \
+            --exclude "BioSeq_results/" \
+            --exclude "reference_genomes/*.fasta" \
+            --exclude "reference_genomes/*.fa" \
+            --exclude "reference_genomes/*.fna"
+
+          cp -a incoming/portable_python/. "$PACKAGE_DIR/portable_python/"
+          cp incoming/linux/WGS_Tools_Linux_x86_64.tar.gz "$PACKAGE_DIR/"
+          cp incoming/linux/WGS_Tools_Manifest.txt "$PACKAGE_DIR/"
+          cp BioSeq_Local_Service/Install_TMM_BioSeq_Portable.bat "$PACKAGE_DIR/"
+          cp BioSeq_Local_Service/BioSeq_Quick_Start.bat "$PACKAGE_DIR/"
+
+          cat > "$PACKAGE_DIR/使用说明.txt" <<'EOF'
+          TMM BioSeq Portable WGS v1.4.0
+
+          1. 必须先完整解压本 ZIP，不能在压缩包预览窗口中运行。
+          2. 双击 Install_TMM_BioSeq_Portable.bat。
+          3. 安装过程只复制和解压包内文件，不联网、不运行 apt。
+          4. 当前电脑需要已经安装并初始化 Ubuntu WSL。
+          5. 安装完成后，网页中的“启动”按钮会调用 BioSeq_Quick_Start.bat。
+          6. WGS 工具固定安装到 Ubuntu 的 /opt/tmm-bioseq-wgs。
+          7. FASTQ、参考基因组和结果只保存在本机，不上传 GitHub。
+          EOF
+
+          mkdir -p dist/release
+          cd dist
+          zip -r -0 "release/${PACKAGE_NAME}" "TMM_BioSeq_Portable_WGS_v1.4.0"
+
+      - name: Validate package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -s "dist/release/${PACKAGE_NAME}"
+          unzip -l "dist/release/${PACKAGE_NAME}" | grep WGS_Tools_Linux_x86_64.tar.gz
+          unzip -l "dist/release/${PACKAGE_NAME}" | grep portable_python/python.exe
+          unzip -l "dist/release/${PACKAGE_NAME}" | grep BioSeq_Server_v140.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMM-BioSeq-Portable-WGS-v1.4.0
+          path: dist/release/${{ env.PACKAGE_NAME }}
+          compression-level: 0
+
+      - name: Publish fixed release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "dist/release/$PACKAGE_NAME" --clobber
+          else
+            gh release create "$RELEASE_TAG" "dist/release/$PACKAGE_NAME" \
+              --title "TMM BioSeq Portable WGS v1.4.0" \
+              --notes "Offline portable package containing BioSeq Engine v1.4.0, a portable Windows Python runtime, and prebuilt fastp/BWA/samtools/bcftools tools for Ubuntu WSL. Installation only copies and extracts bundled files."
+          fi
