@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>TMM BioSeq 生物测序分析工作台</title>
-<link rel="stylesheet" href="assets/style.css?v=20260729-2">
+<link rel="stylesheet" href="assets/style.css?v=20260730-4">
+<link rel="stylesheet" href="assets/engine-status.css?v=20260730-4">
 </head>
 <body>
 <div class="app-shell">
@@ -13,20 +16,20 @@
     <div class="brand"><div class="brand-mark">🧬</div><div><strong>TMM BioSeq</strong><span>Analysis Workbench</span></div></div>
     <nav class="side-nav">
       <a class="active" href="./"><span class="nav-icon">⌂</span>首页工作台</a>
-      <a href="WGS/?v=20260729-2"><span class="nav-icon">🧬</span>全基因组测序</a>
-      <a href="RNAseq/?v=20260729-2"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
-      <a href="Violin/?v=20260729-2"><span class="nav-icon">▥</span>小提琴图绘制</a>
+      <a href="WGS/?v=20260730-4"><span class="nav-icon">🧬</span>全基因组测序</a>
+      <a href="RNAseq/?v=20260730-4"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
+      <a href="Violin/?v=20260730-4"><span class="nav-icon">▥</span>小提琴图绘制</a>
     </nav>
     <div class="sidebar-footer">
       <p>计算任务由本机 BioSeq Engine 执行，网页负责文件选择、任务提交和结果预览。</p>
-      <div data-engine-status><span class="engine-dot"></span>正在检测分析引擎…</div>
+      <div data-engine-status><span class="engine-dot"></span>正在快速检测分析引擎…</div>
     </div>
   </aside>
 
   <main class="main-content">
     <div class="topbar">
-      <div><p class="eyebrow">TMM BIOINFORMATICS</p><h1>生物测序数据自动分析工作台</h1><p class="subtitle">从一个统一入口进入不同分析模块，不再把子模块显示为静态说明页。</p></div>
-      <div class="status-pill" data-engine-status><span class="engine-dot"></span>正在检测分析引擎…</div>
+      <div><p class="eyebrow">TMM BIOINFORMATICS</p><h1>生物测序数据自动分析工作台</h1><p class="subtitle">从统一入口进入分析模块，文件和计算均保留在当前电脑。</p></div>
+      <div class="status-pill" data-engine-status><span class="engine-dot"></span>正在快速检测分析引擎…</div>
     </div>
 
     <section class="hero">
@@ -34,7 +37,7 @@
         <h2>选择分析模块，进入独立操作页面</h2>
         <p>工作台负责模块导航和任务状态管理。进入模块后可选择文件、设置参数、提交本地分析任务、预览结果并下载结果包。</p>
         <div class="hero-actions">
-          <a class="btn" href="WGS/?v=20260729-2">开始 WGS 分析</a>
+          <a class="btn" href="WGS/?v=20260730-4">开始 WGS 分析</a>
           <button class="btn secondary" type="button" onclick="checkEngine()">重新检测引擎</button>
         </div>
       </div>
@@ -48,19 +51,19 @@
 
     <div class="section-heading"><div><h2>分析模块</h2><p>点击整张卡片即可进入对应网页。</p></div></div>
     <section class="module-grid">
-      <a class="module-card" href="WGS/?v=20260729-2">
+      <a class="module-card" href="WGS/?v=20260730-4">
         <div class="module-icon">🧬</div><h3>全基因组测序分析</h3>
-        <p>上传双端 FASTQ 与参考基因组，执行质量控制、比对、BAM 构建及变异分析流程。</p>
+        <p>上传双端 FASTQ，使用离线便携工具包执行质量控制、比对、BAM 构建及变异分析。</p>
         <div class="tag-row"><span class="tag">FASTQ</span><span class="tag">BWA</span><span class="tag">samtools</span></div>
         <div class="module-enter"><span>进入 WGS 工作台</span><b>→</b></div>
       </a>
-      <a class="module-card" href="RNAseq/?v=20260729-2">
+      <a class="module-card" href="RNAseq/?v=20260730-4">
         <div class="module-icon">⌁</div><h3>RNA-seq 分析</h3>
         <p>上传转录组项目文件，自动识别差异表达、表达矩阵及富集分析文件，生成常用图件。</p>
         <div class="tag-row"><span class="tag">火山图</span><span class="tag">气泡图</span><span class="tag">热图</span></div>
         <div class="module-enter"><span>进入 RNA-seq 工作台</span><b>→</b></div>
       </a>
-      <a class="module-card" href="Violin/?v=20260729-2">
+      <a class="module-card" href="Violin/?v=20260730-4">
         <div class="module-icon">▥</div><h3>小提琴图绘制</h3>
         <p>上传表达矩阵并输入一个或多个基因编号，调用 R 脚本生成表达分布图和结果文件。</p>
         <div class="tag-row"><span class="tag">表达矩阵</span><span class="tag">Gene ID</span><span class="tag">PNG</span></div>
@@ -75,10 +78,10 @@
         <div class="workflow-step"><strong>3</strong><b>提交任务</b><span>调用本机 BioSeq Engine</span></div>
         <div class="workflow-step"><strong>4</strong><b>获取结果</b><span>预览并下载结果包</span></div>
       </div></div>
-      <div class="panel"><h3>运行条件</h3><p>GitHub Pages 只能承载网页界面，无法在云端直接运行 BWA、samtools 或 R。进行实际分析前，需要在克隆到电脑的仓库中启动：</p><div class="notice info"><strong>BioSeq_Local_Service/BioSeq_Start.bat</strong><br>引擎地址：127.0.0.1:8765</div></div>
+      <div class="panel"><h3>运行条件</h3><p>GitHub Pages 只提供网页界面。WGS 使用一次安装的离线便携工具包，之后快速启动；RNA-seq 和绘图由本机 R 环境完成。</p><div class="notice info"><strong>BioSeq_Quick_Start.bat</strong><br>引擎地址：127.0.0.1:8765</div></div>
     </section>
   </main>
 </div>
-<script src="assets/app.js?v=20260729-2"></script>
+<script src="assets/app.js?v=20260730-4"></script>
 </body>
 </html>
