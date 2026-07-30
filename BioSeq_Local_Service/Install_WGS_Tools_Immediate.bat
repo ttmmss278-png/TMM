@@ -73,25 +73,21 @@ if not errorlevel 1 (
 
 echo [3/5] 正在更新 Ubuntu 软件源...
 echo 网络速度不同，此步骤通常需要数分钟。窗口会持续显示安装输出，请不要关闭。
-wsl.exe -d "%DISTRO%" -u root -- bash -lc "unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy; export DEBIAN_FRONTEND=noninteractive; apt-get update -o Acquire::Retries=3" 2>&1 | tee "%TEMP%\tmm_bioseq_apt_update.txt"
+wsl.exe -d "%DISTRO%" -u root -- bash -lc "unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy; export DEBIAN_FRONTEND=noninteractive; apt-get update -o Acquire::Retries=3"
 if errorlevel 1 (
-    type "%TEMP%\tmm_bioseq_apt_update.txt" >>"%LOG%" 2>nul
+    echo [%date% %time%] apt-get update failed.>>"%LOG%"
     echo [错误] Ubuntu 软件源更新失败。
     goto :failed
 )
-type "%TEMP%\tmm_bioseq_apt_update.txt" >>"%LOG%" 2>nul
-del /q "%TEMP%\tmm_bioseq_apt_update.txt" >nul 2>&1
 
 
 echo [4/5] 正在安装 fastp、BWA、samtools 和 bcftools...
-wsl.exe -d "%DISTRO%" -u root -- bash -lc "unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy; export DEBIAN_FRONTEND=noninteractive; apt-get install -y --no-install-recommends ca-certificates fastp bwa samtools bcftools" 2>&1 | tee "%TEMP%\tmm_bioseq_apt_install.txt"
+wsl.exe -d "%DISTRO%" -u root -- bash -lc "unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy; export DEBIAN_FRONTEND=noninteractive; apt-get install -y --no-install-recommends ca-certificates fastp bwa samtools bcftools"
 if errorlevel 1 (
-    type "%TEMP%\tmm_bioseq_apt_install.txt" >>"%LOG%" 2>nul
+    echo [%date% %time%] apt-get install failed.>>"%LOG%"
     echo [错误] WGS 工具安装失败。
     goto :failed
 )
-type "%TEMP%\tmm_bioseq_apt_install.txt" >>"%LOG%" 2>nul
-del /q "%TEMP%\tmm_bioseq_apt_install.txt" >nul 2>&1
 
 call :test_tools
 if errorlevel 1 (
