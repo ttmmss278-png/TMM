@@ -4,8 +4,9 @@ const BIOSEQ_MIN_ENGINE_VERSION = String(window.BIOSEQ_MIN_ENGINE_VERSION || '')
 const BIOSEQ_REQUIRE_WGS = Boolean(window.BIOSEQ_REQUIRE_WGS);
 const BIOSEQ_WGS_BUNDLE_URL = String(
   window.BIOSEQ_WGS_BUNDLE_URL ||
-  'https://github.com/ttmmss278-png/TMM/releases/download/bioseq-portable-v1.4.0/TMM_BioSeq_Portable_WGS_v1.4.0.zip'
+  'https://ttmmss278-png.github.io/TMM/downloads/?v=20260730-5'
 ).trim();
+const BIOSEQ_WGS_DOWNLOAD_CENTER = 'https://ttmmss278-png.github.io/TMM/downloads/?v=20260730-5';
 
 let BIOSEQ_CURRENT_PATH = 'uploads';
 let BIOSEQ_ENGINE_ONLINE = false;
@@ -73,11 +74,11 @@ async function fetchJsonWithTimeout(url,timeoutMs=2500){
   }
 }
 
-async function probeEngine(timeoutMs=2200){
+async function probeEngine(timeoutMs=1800){
   return fetchJsonWithTimeout(`${BIOSEQ_API}/status`,timeoutMs);
 }
 
-async function probeEnvironment(timeoutMs=5000){
+async function probeEnvironment(timeoutMs=3500){
   return fetchJsonWithTimeout(`${BIOSEQ_API}/environment`,timeoutMs);
 }
 
@@ -160,8 +161,8 @@ function invokeBioSeqProtocol(action='start'){
 function downloadWgsBundle(event){
   event?.preventDefault?.();
   event?.stopPropagation?.();
-  window.open(BIOSEQ_WGS_BUNDLE_URL,'_blank','noopener');
-  setEngineStatus('请解压离线工具包并运行安装器，完成后点击“重新检测”',false,{
+  window.open(BIOSEQ_WGS_DOWNLOAD_CENTER,'_blank','noopener');
+  setEngineStatus('请在下载中心获取并安装离线工具包，完成后点击“重新检测”',false,{
     buttonLabel:'重新检测',
     actionName:'retryEngineCheck'
   });
@@ -176,7 +177,7 @@ function retryEngineCheck(event){
   return false;
 }
 
-async function waitForEngine(maxAttempts=15,intervalMs=1000){
+async function waitForEngine(maxAttempts=10,intervalMs=1000){
   for(let attempt=1;attempt<=maxAttempts;attempt+=1){
     const inspection=await inspectEngine();
     if(inspection.ready){
