@@ -7,8 +7,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>WGS 全基因组测序分析｜TMM BioSeq</title>
-<link rel="stylesheet" href="../assets/style.css?v=20260730-2">
-<link rel="stylesheet" href="../assets/engine-status.css?v=20260730-2">
+<link rel="stylesheet" href="../assets/style.css?v=20260730-4">
+<link rel="stylesheet" href="../assets/engine-status.css?v=20260730-4">
 </head>
 <body>
 <div class="app-shell">
@@ -20,25 +20,44 @@
       <a href="../RNAseq/"><span class="nav-icon">⌁</span>RNA-seq 分析</a>
       <a href="../Violin/"><span class="nav-icon">▥</span>小提琴图绘制</a>
     </nav>
-    <div class="sidebar-footer"><p>WGS 需要 BioSeq Engine v1.3.1 及完整工具链。</p><div data-engine-status><span class="engine-dot"></span>正在检测分析引擎…</div></div>
+    <div class="sidebar-footer">
+      <p>WGS 使用一次安装的便携工具包，启动时不再联网安装。</p>
+      <div data-engine-status><span class="engine-dot"></span>正在快速检测分析引擎…</div>
+    </div>
   </aside>
 
   <main class="main-content">
     <div class="module-page">
       <a class="back-link" href="../">← 返回首页工作台</a>
       <div class="page-head">
-        <div class="page-title"><div class="module-icon">🧬</div><div><h1>全基因组测序分析</h1><p>双端 FASTQ 质量控制、ToxoDB-68 GT1 参考基因组比对、BAM 构建与变异分析。</p></div></div>
-        <div class="status-pill" data-engine-status><span class="engine-dot"></span>正在检测分析引擎…</div>
+        <div class="page-title">
+          <div class="module-icon">🧬</div>
+          <div>
+            <h1>全基因组测序分析</h1>
+            <p>双端 FASTQ 质量控制、ToxoDB-68 GT1 参考基因组比对、BAM 构建与变异分析。</p>
+          </div>
+        </div>
+        <div class="status-pill" data-engine-status><span class="engine-dot"></span>正在快速检测分析引擎…</div>
       </div>
 
       <section class="panel">
         <h3>0. 分析环境</h3>
-        <p>网页会同时验证引擎版本和 WGS 工具链。仅连接到旧引擎不再视为可运行。</p>
-        <div id="wgsEnvironmentStatus" class="notice info">正在检查 BioSeq Engine v1.3.1、fastp、BWA、samtools 和 bcftools…</div>
+        <p>WGS 工具改为离线便携包。工具只安装一次，日常启动通常在数秒内完成，不再等待 240 次检测。</p>
+        <div id="wgsEnvironmentStatus" class="notice info">正在快速检查 BioSeq Engine v1.4.0 和便携 WGS 工具包…</div>
+
+        <div id="wgsToolCards" class="file-summary" style="margin-top:14px">
+          <div class="file-item"><strong>fastp</strong><span>检测中</span></div>
+          <div class="file-item"><strong>BWA</strong><span>检测中</span></div>
+          <div class="file-item"><strong>samtools</strong><span>检测中</span></div>
+          <div class="file-item"><strong>bcftools</strong><span>检测中</span></div>
+        </div>
+
         <div class="action-row">
           <button class="btn secondary" type="button" onclick="refreshWgsEnvironment()">重新检测环境</button>
-          <button class="btn" type="button" onclick="repairWgsEnvironment()">升级/修复分析环境</button>
+          <button class="btn" type="button" onclick="downloadWgsBundle(event)">下载离线便携工具包</button>
+          <button class="btn secondary" type="button" onclick="startBioSeqEngine(event)">快速启动引擎</button>
         </div>
+        <small>离线包包含便携 Python、BioSeq Engine 及预装的 fastp、BWA、samtools、bcftools；安装时只复制和解压包内文件。</small>
       </section>
 
       <section class="panel" style="margin-top:18px">
@@ -50,7 +69,7 @@
           <div class="field full">
             <label for="referenceFile">参考基因组（可选）</label>
             <input id="referenceFile" type="file" accept=".fa,.fasta,.fna">
-            <small>默认文件：ToxoDB-68_TgondiiGT1_Genome.fasta。首次选择后会保存到本机 reference_genomes 目录，后续无需重复选择。</small>
+            <small>默认文件：ToxoDB-68_TgondiiGT1_Genome.fasta。首次选择后保存到本机，后续无需重复选择。</small>
           </div>
         </div>
         <div id="referenceStatus" class="notice info" style="margin-top:16px">正在检查默认参考基因组…</div>
@@ -67,10 +86,10 @@
           <div class="field"><label for="geneID">目标基因 ID（可选）</label><input id="geneID" placeholder="例如 TGGT1_240690"><small>用于记录目标区域；是否参与下游注释取决于本地脚本配置。</small></div>
           <div class="field"><label for="sampleName">样本名称</label><input id="sampleName" placeholder="例如 Dicre-01"><small>建议使用不含空格的英文、数字和短横线。</small></div>
         </div>
-        <div class="notice" style="margin-top:16px">FASTQ 和参考基因组只上传到当前电脑上的 BioSeq Engine，不会上传到 GitHub。首次建立 BWA 和 FASTA 索引可能耗时较长，后续会直接复用。</div>
+        <div class="notice" style="margin-top:16px">FASTQ、参考基因组和结果仅在本机 BioSeq Engine 中处理，不会上传到 GitHub。首次建立参考基因组索引可能耗时较长，后续直接复用。</div>
         <div class="action-row">
           <button id="runWgsButton" class="btn" type="button" onclick="submitWgs()" disabled>环境检查后开始分析</button>
-          <button class="btn secondary" type="button" onclick="checkEngine().then(refreshWgsEnvironment).then(refreshReferenceStatus)">检测分析引擎</button>
+          <button class="btn secondary" type="button" onclick="refreshWgsEnvironment().then(refreshReferenceStatus)">检测分析环境</button>
           <button class="btn danger" type="button" onclick="resetWgs()">清空本次输入</button>
         </div>
       </section>
@@ -83,11 +102,13 @@
     </div>
   </main>
 </div>
+
 <script>
-window.BIOSEQ_MIN_ENGINE_VERSION='1.3.1';
+window.BIOSEQ_MIN_ENGINE_VERSION='1.4.0';
 window.BIOSEQ_REQUIRE_WGS=true;
+window.BIOSEQ_WGS_BUNDLE_URL='https://github.com/ttmmss278-png/TMM/releases/download/bioseq-portable-v1.4.0/TMM_BioSeq_Portable_WGS_v1.4.0.zip';
 </script>
-<script src="../assets/app.js?v=20260730-2"></script>
+<script src="../assets/app.js?v=20260730-4"></script>
 <script>
 const wgsInputs=['r1File','r2File','referenceFile'];
 let defaultReferenceInstalled=false;
@@ -116,49 +137,54 @@ function setWgsRunEnabled(enabled){
   button.textContent=wgsEnvironmentReady?'上传并开始分析':'环境未就绪';
 }
 
+function renderToolCards(environment){
+  const target=document.getElementById('wgsToolCards');
+  const versions=environment?.wgs?.versions||{};
+  const ready=Boolean(environment?.wgs?.ready);
+  const missing=new Set(environment?.wgs?.missing_tools||[]);
+  const tools=['fastp','bwa','samtools','bcftools'];
+  target.innerHTML=tools.map(tool=>{
+    const available=tool==='bcftools' ? Boolean(environment?.wgs?.bcftools_available) : ready&&!missing.has(tool);
+    const detail=available?(versions[tool]||'已安装'):(tool==='bcftools'?'未安装（可选）':'未安装');
+    return `<div class="file-item"><strong>${escapeHtml(tool)}</strong><span>${escapeHtml(detail)}</span></div>`;
+  }).join('');
+}
+
 async function refreshWgsEnvironment(){
   const box=document.getElementById('wgsEnvironmentStatus');
   setWgsRunEnabled(false);
   box.className='notice info';
-  box.textContent='正在检查引擎版本和 WGS 工具链…';
+  box.textContent='正在快速检查引擎和便携 WGS 工具包…';
 
-  const status=await probeEngine(3000);
-  if(!status){
+  const inspection=await inspectEngine();
+  if(inspection.reason==='offline'){
+    renderToolCards(null);
     box.className='notice';
-    box.textContent='BioSeq Engine 未启动。点击“升级/修复分析环境”启动本地管理器。';
+    box.textContent='BioSeq Engine 未启动。点击“快速启动引擎”；启动检测最长约 15 秒。';
     return false;
   }
-  if(compareVersions(status.version||'0','1.3.1')<0){
+  if(inspection.reason==='outdated'){
+    renderToolCards(null);
     box.className='notice';
-    box.textContent=`当前连接的是旧引擎 v${status.version||'未知'}，WGS 页面要求 v1.3.1。点击“升级/修复分析环境”强制替换旧进程。`;
+    box.textContent=`当前引擎为 v${inspection.status?.version||'未知'}，需要 v1.4.0。请下载离线便携工具包并运行安装器。`;
+    return false;
+  }
+  if(inspection.reason==='wgs-unavailable'){
+    renderToolCards(inspection.environment);
+    const missing=inspection.environment?.wgs?.missing_tools||['fastp','bwa','samtools'];
+    box.className='notice';
+    box.textContent=`引擎已连接，但离线 WGS 工具包尚未安装：${missing.join('、')}。下载后完整解压，只需安装一次。`;
     return false;
   }
 
-  const environment=await probeEnvironment(12000);
-  if(!environment?.wgs?.ready){
-    const missing=environment?.wgs?.missing_tools||['fastp','bwa','samtools'];
-    box.className='notice';
-    box.textContent=`引擎版本正确，但 WGS 工具未就绪：${missing.join('、')}。点击“升级/修复分析环境”自动安装。`;
-    return false;
-  }
-
-  const backend=String(environment.wgs.backend||'unknown').toUpperCase();
-  const variant=environment.wgs.bcftools_available?'bcftools 已就绪':'bcftools 未安装，将跳过变异检测';
+  const environment=inspection.environment;
+  renderToolCards(environment);
+  const backend=environment?.wgs?.backend==='portable-wsl'?'便携 WSL':String(environment?.wgs?.backend||'unknown').toUpperCase();
+  const variant=environment?.wgs?.bcftools_available?'bcftools 已就绪':'bcftools 未安装，将跳过变异检测';
   box.className='notice info';
   box.textContent=`环境已就绪：BioSeq Engine v${environment.engine_version} · ${backend} 工具链 · ${variant}。`;
   setWgsRunEnabled(true);
   return true;
-}
-
-async function repairWgsEnvironment(){
-  setResult('resultLog','正在调用本地一体化启动器。它会关闭旧引擎、更新后端并检查 WGS 工具…');
-  const ready=await startBioSeqEngine();
-  await refreshWgsEnvironment();
-  if(ready&&wgsEnvironmentReady){
-    setResult('resultLog','分析环境修复完成，可以提交 WGS 任务。','success');
-  }else{
-    setResult('resultLog','分析环境仍未就绪。请运行最新版 BioSeq_Engine_Manager_v132.bat 并查看安装日志。','error');
-  }
 }
 
 async function refreshReferenceStatus(){
@@ -178,7 +204,7 @@ async function refreshReferenceStatus(){
   }catch(error){
     defaultReferenceInstalled=false;
     box.className='notice';
-    box.textContent='无法读取参考基因组状态，请先启动兼容的 BioSeq Engine。';
+    box.textContent='无法读取参考基因组状态，请先启动 BioSeq Engine v1.4.0。';
     return false;
   }
 }
@@ -198,7 +224,7 @@ async function installSelectedReferenceOnly(){
   const reference=document.getElementById('referenceFile').files[0];
   if(!reference){ setResult('resultLog','请先选择 ToxoDB-68_TgondiiGT1_Genome.fasta。','error'); return; }
   const ready=await refreshWgsEnvironment();
-  if(!ready){ setResult('resultLog','分析环境未就绪，请先升级/修复 BioSeq Engine。','error'); return; }
+  if(!ready){ setResult('resultLog','分析环境未就绪，请先安装离线便携工具包。','error'); return; }
   try{
     await installDefaultReference(reference);
   }catch(error){
@@ -214,7 +240,7 @@ async function submitWgs(){
 
   const environmentReady=await refreshWgsEnvironment();
   if(!environmentReady){
-    setResult('resultLog','WGS 环境未就绪，已阻止上传和分析。请先点击“升级/修复分析环境”。','error');
+    setResult('resultLog','WGS 环境未就绪。请安装离线工具包并重新检测，不会继续上传大文件。','error');
     return;
   }
   await refreshReferenceStatus();
