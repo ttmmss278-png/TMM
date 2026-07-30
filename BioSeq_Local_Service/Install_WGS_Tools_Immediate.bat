@@ -1,162 +1,134 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions
 chcp 65001 >nul
-title TMM BioSeq WGS Tools Immediate Installer
+title TMM BioSeq WGS Tools Installer v2
 
-set "SELF=%~f0"
 set "ROOT=%LOCALAPPDATA%\TMMBioSeq"
 set "LOGDIR=%ROOT%\logs"
-set "LOG=%LOGDIR%\wgs_tools_immediate_install.log"
+set "LOG=%LOGDIR%\wgs_tools_install_v2.log"
 set "DISTRO="
-set "ENGINE_OK=0"
-
-if /I not "%~1"=="--admin" (
-    net session >nul 2>&1
-    if errorlevel 1 (
-        echo 正在请求管理员权限...
-        set "SELF_ENV=%SELF%"
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Start-Process -FilePath $env:SELF_ENV -ArgumentList '--admin' -Verb RunAs -PassThru -Wait;exit $p.ExitCode"
-        exit /b !ERRORLEVEL!
-    )
-)
 
 if not exist "%ROOT%" mkdir "%ROOT%" >nul 2>&1
 if not exist "%LOGDIR%" mkdir "%LOGDIR%" >nul 2>&1
->"%LOG%" echo [%date% %time%] TMM BioSeq immediate WGS tools installation
 
-cls
+>"%LOG%" echo [%date% %time%] TMM BioSeq WGS tools installer v2
+
 echo =====================================================
-echo   TMM BioSeq WGS 必需工具一键安装
+echo   TMM BioSeq WGS 必需工具安装器 v2
 echo =====================================================
 echo.
-echo 将安装：fastp、BWA、samtools、bcftools
-echo 安装位置：已有 Ubuntu WSL
-echo 这是一次性安装；以后启动引擎不再重复安装。
+echo 将安装并验证：
+echo   fastp
+echo   BWA
+echo   samtools
+echo   bcftools
+echo.
+echo 本版本不执行 Windows 自提权，也不修改 BioSeq Engine。
+echo 安装完成后只需返回网页重新检测环境。
 echo.
 
 where wsl.exe >nul 2>&1
-if errorlevel 1 (
-    echo [错误] Windows 中没有检测到 WSL。
-    echo 请先启用 Windows 适用于 Linux 的子系统，然后重新运行。
-    goto :failed
-)
+if errorlevel 1 goto NO_WSL
 
-echo [1/5] 正在检测 Ubuntu WSL...
-call :detect_distro
-if not defined DISTRO (
-    echo 未找到已初始化的 Ubuntu，正在安装 Ubuntu WSL...
-    wsl.exe --install -d Ubuntu --web-download >>"%LOG%" 2>&1
-    timeout /t 3 /nobreak >nul
-    call :detect_distro
-)
+echo [1/4] 正在查找已初始化的 WSL 发行版...
+call :TRY_DISTRO Ubuntu
+if defined DISTRO goto DISTRO_FOUND
+call :TRY_DISTRO Ubuntu-24.04
+if defined DISTRO goto DISTRO_FOUND
+call :TRY_DISTRO Ubuntu-22.04
+if defined DISTRO goto DISTRO_FOUND
+call :TRY_DISTRO Ubuntu-20.04
+if defined DISTRO goto DISTRO_FOUND
+call :TRY_DISTRO Debian
+if defined DISTRO goto DISTRO_FOUND
+goto NO_DISTRO
 
-if not defined DISTRO (
-    echo.
-    echo Windows 已开始安装 Ubuntu WSL，但需要重启电脑完成初始化。
-    echo 重启后打开一次 Ubuntu，等待初始化完成，再重新运行本文件。
-    echo.
-    pause
-    exit /b 10
-)
-
+:DISTRO_FOUND
 echo 已找到：%DISTRO%
-reg add "HKCU\Software\TMMBioSeq" /v WslDistro /t REG_SZ /d "%DISTRO%" /f >nul
+reg add "HKCU\Software\TMMBioSeq" /v WslDistro /t REG_SZ /d "%DISTRO%" /f >nul 2>&1
 
+echo [2/4] 正在检查现有工具...
+call :CHECK_TOOLS
+if not errorlevel 1 goto ALREADY_READY
 
-echo [2/5] 正在检查现有工具...
-call :test_tools
-if not errorlevel 1 (
-    echo fastp、BWA、samtools、bcftools 已全部安装，跳过重复安装。
-    goto :restart_engine
-)
-
-
-echo [3/5] 正在更新 Ubuntu 软件源...
-echo 网络速度不同，此步骤通常需要数分钟。窗口会持续显示安装输出，请不要关闭。
+echo [3/4] 正在更新 Linux 软件源...
+echo 此步骤取决于网络速度，请保持窗口开启。
 wsl.exe -d "%DISTRO%" -u root -- bash -lc "unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy; export DEBIAN_FRONTEND=noninteractive; apt-get update -o Acquire::Retries=3"
-if errorlevel 1 (
-    echo [%date% %time%] apt-get update failed.>>"%LOG%"
-    echo [错误] Ubuntu 软件源更新失败。
-    goto :failed
-)
+if errorlevel 1 goto UPDATE_FAILED
 
+echo.
+echo 正在启用软件源并安装工具...
+wsl.exe -d "%DISTRO%" -u root -- bash -lc "unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy; export DEBIAN_FRONTEND=noninteractive; apt-get install -y software-properties-common ca-certificates; if command -v add-apt-repository >/dev/null 2>&1; then add-apt-repository -y universe || true; fi; apt-get update -o Acquire::Retries=3; apt-get install -y --no-install-recommends fastp bwa samtools bcftools"
+if errorlevel 1 goto INSTALL_FAILED
 
-echo [4/5] 正在安装 fastp、BWA、samtools 和 bcftools...
-wsl.exe -d "%DISTRO%" -u root -- bash -lc "unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy; export DEBIAN_FRONTEND=noninteractive; apt-get install -y --no-install-recommends ca-certificates fastp bwa samtools bcftools"
-if errorlevel 1 (
-    echo [%date% %time%] apt-get install failed.>>"%LOG%"
-    echo [错误] WGS 工具安装失败。
-    goto :failed
-)
+echo [4/4] 正在验证工具...
+call :CHECK_TOOLS
+if errorlevel 1 goto VERIFY_FAILED
+goto SUCCESS
 
-call :test_tools
-if errorlevel 1 (
-    echo [错误] 安装完成后仍有工具无法调用。
-    goto :failed
-)
+:ALREADY_READY
+echo 四个工具已经存在，不重复安装。
+goto SUCCESS
 
-:restart_engine
-echo [5/5] 正在重启 BioSeq Engine...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":8765 .*LISTENING"') do taskkill /PID %%P /F >nul 2>&1
-timeout /t 2 /nobreak >nul
-
-if exist "%ROOT%\BioSeq_Quick_Start.bat" (
-    start "TMM BioSeq Engine" /min "%ROOT%\BioSeq_Quick_Start.bat"
-) else if exist "%ROOT%\BioSeq_Engine_Launcher.bat" (
-    start "TMM BioSeq Engine" /min "%ROOT%\BioSeq_Engine_Launcher.bat" "bioseq://start"
-) else if exist "%ROOT%\app\BioSeq_Local_Service\BioSeq_Start.bat" (
-    start "TMM BioSeq Engine" /min "%ROOT%\app\BioSeq_Local_Service\BioSeq_Start.bat"
-) else (
-    echo 未找到本地启动器。工具已安装，请在网页点击“启动”。
-    goto :success
-)
-
-for /L %%I in (1,1,15) do (
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "try{$s=Invoke-RestMethod -Uri 'http://127.0.0.1:8765/status' -TimeoutSec 2;if($s.version){exit 0}}catch{};exit 1" >nul 2>&1
-    if not errorlevel 1 (
-        set "ENGINE_OK=1"
-        goto :success
-    )
-    timeout /t 1 /nobreak >nul
-)
-
-:success
+:SUCCESS
 echo.
 echo =====================================================
-echo 安装完成
+echo 安装与验证成功
 echo =====================================================
 echo.
-echo 已安装：
-wsl.exe -d "%DISTRO%" -u root -- bash -lc "fastp --version; echo BWA; bwa 2>&1 | head -n 3; samtools --version | head -n 1; bcftools --version | head -n 1"
+wsl.exe -d "%DISTRO%" -u root -- bash -lc "echo fastp:; fastp --version; echo; echo BWA:; bwa 2>&1 | head -n 3; echo; samtools --version | head -n 1; bcftools --version | head -n 1"
 echo.
-if "%ENGINE_OK%"=="1" (
-    echo BioSeq Engine 已重新连接。
-) else (
-    echo WGS 工具已安装。请回到网页点击“启动”或“检测分析环境”。
-)
+echo 请执行：
+echo   1. 回到 WGS 网页
+echo   2. 按 Ctrl+F5
+echo   3. 点击“检测分析环境”
 echo.
-echo 回到 WGS 页面按 Ctrl+F5，然后点击“检测分析环境”。
+echo 不需要重新安装 BioSeq Engine。
 echo 日志：%LOG%
 echo.
 pause
 exit /b 0
 
-:detect_distro
-set "DISTRO="
-for %%D in (Ubuntu Ubuntu-24.04 Ubuntu-22.04 Ubuntu-20.04) do (
-    if not defined DISTRO (
-        wsl.exe -d "%%D" -u root -- bash -lc "exit 0" 1>>"%LOG%" 2>>"%LOG%"
-        if not errorlevel 1 set "DISTRO=%%D"
-    )
-)
+:TRY_DISTRO
+wsl.exe -d "%~1" -u root -- bash -lc "exit 0" >>"%LOG%" 2>&1
+if not errorlevel 1 set "DISTRO=%~1"
 exit /b 0
 
-:test_tools
-if not defined DISTRO exit /b 1
-wsl.exe -d "%DISTRO%" -u root -- bash -lc "command -v fastp >/dev/null 2>&1 && command -v bwa >/dev/null 2>&1 && command -v samtools >/dev/null 2>&1 && command -v bcftools >/dev/null 2>&1" 1>>"%LOG%" 2>>"%LOG%"
+:CHECK_TOOLS
+wsl.exe -d "%DISTRO%" -u root -- bash -lc "command -v fastp >/dev/null 2>&1 && command -v bwa >/dev/null 2>&1 && command -v samtools >/dev/null 2>&1 && command -v bcftools >/dev/null 2>&1" >>"%LOG%" 2>&1
 exit /b %ERRORLEVEL%
 
-:failed
+:NO_WSL
+echo.
+echo [错误] Windows 未检测到 wsl.exe。
+echo 请先在“启用或关闭 Windows 功能”中启用：
+echo   适用于 Linux 的 Windows 子系统
+echo   虚拟机平台
+goto FAILED
+
+:NO_DISTRO
+echo.
+echo [错误] 没有找到已完成初始化的 Ubuntu 或 Debian。
+echo 请先从开始菜单打开 Ubuntu，完成首次初始化，再重新运行本文件。
+goto FAILED
+
+:UPDATE_FAILED
+echo.
+echo [错误] Linux 软件源更新失败。
+echo 请检查网络、代理或 Ubuntu 网络连接。
+goto FAILED
+
+:INSTALL_FAILED
+echo.
+echo [错误] fastp、BWA、samtools 或 bcftools 安装失败。
+goto FAILED
+
+:VERIFY_FAILED
+echo.
+echo [错误] 安装命令已结束，但仍有工具无法调用。
+goto FAILED
+
+:FAILED
 echo.
 echo =====================================================
 echo 安装未完成
