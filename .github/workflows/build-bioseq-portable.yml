@@ -65,6 +65,23 @@ jobs:
           bcftools: $(/opt/tmm-bioseq-wgs/bin/bcftools --version | head -n 1)
           EOF
           tar -C /opt/tmm-bioseq-wgs -czf dist/WGS_Tools_Linux_x86_64.tar.gz .
+          sha256sum dist/WGS_Tools_Linux_x86_64.tar.gz > dist/WGS_Tools_Linux_x86_64.sha256
+
+      - name: Validate tools after extracting archive
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /opt/tmm-bioseq-wgs
+          mkdir -p /opt/tmm-bioseq-wgs
+          tar -xzf dist/WGS_Tools_Linux_x86_64.tar.gz -C /opt/tmm-bioseq-wgs
+          test -x /opt/tmm-bioseq-wgs/bin/fastp
+          test -x /opt/tmm-bioseq-wgs/bin/bwa
+          test -x /opt/tmm-bioseq-wgs/bin/samtools
+          test -x /opt/tmm-bioseq-wgs/bin/bcftools
+          /opt/tmm-bioseq-wgs/bin/fastp --version
+          /opt/tmm-bioseq-wgs/bin/bwa 2>&1 | head -n 3 || true
+          /opt/tmm-bioseq-wgs/bin/samtools --version | head -n 1
+          /opt/tmm-bioseq-wgs/bin/bcftools --version | head -n 1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -100,11 +117,14 @@ jobs:
             Remove-Item -Force -ErrorAction SilentlyContinue
 
           & .\dist\portable_python\python.exe -c "import flask,flask_cors,werkzeug;print('portable-python-ok')"
+          & .\dist\portable_python\python.exe --version | Set-Content -Encoding UTF8 dist\Portable_Python_Manifest.txt
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows-python-runtime
-          path: dist/portable_python/
+          path: |
+            dist/portable_python/
+            dist/Portable_Python_Manifest.txt
           compression-level: 0
 
   package-and-release:
@@ -121,7 +141,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: windows-python-runtime
-          path: incoming/portable_python
+          path: incoming/windows
 
       - name: Assemble offline package
         shell: bash
@@ -141,8 +161,10 @@ jobs:
             --exclude "reference_genomes/*.fa" \
             --exclude "reference_genomes/*.fna"
 
-          cp -a incoming/portable_python/. "$PACKAGE_DIR/portable_python/"
+          cp -a incoming/windows/portable_python/. "$PACKAGE_DIR/portable_python/"
+          cp incoming/windows/Portable_Python_Manifest.txt "$PACKAGE_DIR/"
           cp incoming/linux/WGS_Tools_Linux_x86_64.tar.gz "$PACKAGE_DIR/"
+          cp incoming/linux/WGS_Tools_Linux_x86_64.sha256 "$PACKAGE_DIR/"
           cp incoming/linux/WGS_Tools_Manifest.txt "$PACKAGE_DIR/"
           cp BioSeq_Local_Service/Install_TMM_BioSeq_Portable.bat "$PACKAGE_DIR/"
           cp BioSeq_Local_Service/BioSeq_Quick_Start.bat "$PACKAGE_DIR/"
@@ -162,32 +184,45 @@ jobs:
           mkdir -p dist/release
           cd dist
           zip -r -0 "release/${PACKAGE_NAME}" "TMM_BioSeq_Portable_WGS_v1.4.0"
+          cd release
+          sha256sum "$PACKAGE_NAME" > "${PACKAGE_NAME}.sha256"
 
-      - name: Validate package
+      - name: Validate complete ZIP package
         shell: bash
         run: |
           set -euxo pipefail
           test -s "dist/release/${PACKAGE_NAME}"
+          unzip -t "dist/release/${PACKAGE_NAME}"
           unzip -l "dist/release/${PACKAGE_NAME}" | grep WGS_Tools_Linux_x86_64.tar.gz
+          unzip -l "dist/release/${PACKAGE_NAME}" | grep WGS_Tools_Linux_x86_64.sha256
           unzip -l "dist/release/${PACKAGE_NAME}" | grep portable_python/python.exe
           unzip -l "dist/release/${PACKAGE_NAME}" | grep BioSeq_Server_v140.py
+          unzip -l "dist/release/${PACKAGE_NAME}" | grep BioSeq_Quick_Start.bat
+          unzip -l "dist/release/${PACKAGE_NAME}" | grep Install_TMM_BioSeq_Portable.bat
 
       - uses: actions/upload-artifact@v4
         with:
           name: TMM-BioSeq-Portable-WGS-v1.4.0
-          path: dist/release/${{ env.PACKAGE_NAME }}
+          path: |
+            dist/release/${{ env.PACKAGE_NAME }}
+            dist/release/${{ env.PACKAGE_NAME }}.sha256
           compression-level: 0
 
-      - name: Publish fixed release asset
+      - name: Publish fixed release assets
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euxo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "dist/release/$PACKAGE_NAME" --clobber
+            gh release upload "$RELEASE_TAG" \
+              "dist/release/$PACKAGE_NAME" \
+              "dist/release/$PACKAGE_NAME.sha256" \
+              --clobber
           else
-            gh release create "$RELEASE_TAG" "dist/release/$PACKAGE_NAME" \
+            gh release create "$RELEASE_TAG" \
+              "dist/release/$PACKAGE_NAME" \
+              "dist/release/$PACKAGE_NAME.sha256" \
               --title "TMM BioSeq Portable WGS v1.4.0" \
               --notes "Offline portable package containing BioSeq Engine v1.4.0, a portable Windows Python runtime, and prebuilt fastp/BWA/samtools/bcftools tools for Ubuntu WSL. Installation only copies and extracts bundled files."
           fi
